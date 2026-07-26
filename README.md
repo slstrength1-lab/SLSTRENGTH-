@@ -1,44 +1,77 @@
 # SL Strength OS
 
-The operating system for **SL Strength** — Shane Lanteigne's premium online coaching business.
+The operating system for **SL Strength** — Shane Lanteigne's premium online coaching
+business. This repo now holds two layers:
 
-This repository documents the **data architecture** of the business, which lives in
-Notion. Phase 1 is the foundation: the connected set of databases that every future
-workflow, automation, and AI agent will plug into.
+1. **The backend** — the live data architecture in Notion (Clients, Leads, Sales,
+   Check-ins, Programs, Content, Business Metrics) plus the Command Center dashboard.
+   See [`docs/architecture.md`](docs/architecture.md) and
+   [`docs/command-center.md`](docs/command-center.md).
+2. **The interface prototype** — a Next.js app that shows what the future SL Strength
+   **client portal** and **coach dashboard** look like on top of that backend.
 
-> Phase 1 is architecture only. Automation comes later — first we build the structure
-> everything else connects to.
+> The prototype uses realistic **sample data**. It is API-ready: every page reads through
+> an adapter (`lib/notion.ts`) that will return live Notion data once a key is added,
+> with no page changes required.
 
-## Where it lives
+## Run the prototype
 
-- **Notion workspace:** Shane Lanteigne's Space
-- **Hub page:** [🏋️ SL Strength OS](https://app.notion.com/p/3a9a58f71c0f810599e7eb3abbc017fd)
-- **Daily dashboard:** [🏆 SL Strength Command Center](https://app.notion.com/p/3a9a58f71c0f81a185e0e63d5fd04d87)
-  — the one page Shane opens each day (see [`docs/command-center.md`](docs/command-center.md))
+```bash
+npm install
+npm run dev        # http://localhost:3000
+# or
+npm run build && npm start
+```
 
-## The seven databases
+- `/` — experience selector
+- **Client portal:** `/dashboard`, `/training`, `/nutrition`, `/checkins`, `/progress`, `/messages`
+- **Coach dashboard:** `/coach`
+- Use **"Switch to Coach / Client view"** in the sidebar to move between the two.
 
-| Database | Purpose |
-|---|---|
-| 👥 **Clients** | The CRM heart — every active, paused, and past coaching client |
-| 🎯 **Leads** | The sales pipeline — prospects from first contact to close |
-| 💰 **Sales** | Every transaction, payment, and revenue record |
-| 📊 **Check-ins** | Weekly client accountability and progress tracking |
-| 🏋️ **Programs** | Individualized training programs assigned to clients |
-| 🎬 **Content** | The content pipeline across all platforms |
-| 📈 **Business Metrics** | Weekly KPI snapshots for the whole business |
+## Tech
 
-**Clients** is the hub. Leads, Sales, Check-ins, and Programs all relate back to it, and
-Clients rolls up each person's `Lifetime Revenue` and `Total Check-ins`.
+Next.js 14 (App Router) · TypeScript · Tailwind CSS · lucide-react. No component library —
+a small in-house design system (`components/primitives.tsx`) keeps the premium black/red
+athletic look consistent and the bundle lean. Charts are dependency-free inline SVG.
 
-See [`docs/architecture.md`](docs/architecture.md) for the full schema, relation map,
-data source IDs, and views — the connection reference for building automation on top of
-this foundation.
+## Structure
+
+```
+app/
+  page.tsx                 # OS entry / experience selector
+  (portal)/                # Client portal (shared sidebar layout)
+    dashboard, training, nutrition, checkins, progress, messages
+  coach/                   # Coach dashboard
+  api/                     # REST stubs: clients, leads, sales, checkins,
+                           #   programs, content, metrics
+components/                # AppShell, Brand, primitives, charts, feature UI
+lib/
+  types.ts                 # Domain models (mirror the Notion databases)
+  data.ts                  # Realistic sample data (the in-memory "database")
+  notion.ts                # Notion adapter — swap sample data for live data here
+  format.ts                # Formatting + derived-metric helpers
+docs/                      # Notion backend architecture + Command Center guide
+```
+
+## Data models
+
+`Client`, `Lead`, `Sale`, `CheckIn`, `Program`, `ContentItem`, `Metric` in
+[`lib/types.ts`](lib/types.ts) mirror the Notion databases one-to-one (each carries an
+optional `notionId`). Training structure (`ProgramWeek → WorkoutDay → Exercise`) and the
+client `NutritionPlan` are nested types that will live inside the Program / Client records.
+
+## Connecting Notion later
+
+1. `npm install @notionhq/client` and set `NOTION_API_KEY` in `.env.local`.
+2. Implement the functions in [`lib/notion.ts`](lib/notion.ts) against the data-source IDs
+   already listed there (they match the live workspace).
+3. Map each Notion property to the model fields in `lib/types.ts`.
+
+Nothing in `app/` or `components/` changes — the UI only ever calls the adapter and the
+API routes. `lib/notion.ts` exposes `isLive` (true once the key is set) so you can roll the
+backend over incrementally.
 
 ## Operating principles
 
-- Premium coaching experience
-- High-touch where it matters
-- Automation for repetitive tasks
-- AI-assisted decision making
-- Simple systems before complex automation
+Premium experience · high-touch where it matters · automation for repetitive tasks ·
+AI-assisted decisions · simple systems before complex ones.
