@@ -96,6 +96,19 @@ export async function programForClient(clientId: string): Promise<Program | unde
   return { ...program, weeks: template?.weeks ?? [] };
 }
 
+/**
+ * Every program on record for a client (newest first), straight from Notion —
+ * no sample training template is borrowed here, so the coach view only ever
+ * shows real data. Use `programForClient` when you need the renderable weekly
+ * structure on the athlete's Training page.
+ */
+export async function programsForClient(clientId: string): Promise<Program[]> {
+  const all = await programsRaw();
+  return all
+    .filter((p) => p.clientId === clientId)
+    .sort((a, b) => (a.startDate < b.startDate ? 1 : -1));
+}
+
 /* ------------------------------------------------------------------ */
 /* Check-ins                                                           */
 /* ------------------------------------------------------------------ */
@@ -104,6 +117,14 @@ export async function checkInsForClient(clientId: string): Promise<CheckIn[]> {
   const all = await checkInsRaw();
   return all
     .filter((c) => c.clientId === clientId)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+/** Sales/payments recorded against a client (newest first), from Notion. */
+export async function salesForClient(clientId: string): Promise<Sale[]> {
+  const all = await salesRaw();
+  return all
+    .filter((s) => s.clientId === clientId)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 

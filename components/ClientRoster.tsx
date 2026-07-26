@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import type { Client } from "@/lib/types";
 import { Avatar, ProgressBar, Pill } from "./primitives";
 import { riskClasses, relativeDate, currency } from "@/lib/format";
@@ -21,19 +23,24 @@ export function ClientRoster({ clients }: { clients: Client[] }) {
             <th className="py-2.5 pr-4 font-semibold">Compliance</th>
             <th className="py-2.5 pr-4 font-semibold">Last check-in</th>
             <th className="py-2.5 pr-4 text-right font-semibold">MRR</th>
+            <th className="py-2.5 w-6 font-semibold" aria-label="Open" />
           </tr>
         </thead>
         <tbody className="divide-y divide-white/[0.05]">
           {sorted.map((c) => (
-            <tr key={c.id} className="group transition-colors hover:bg-white/[0.02]">
+            <tr key={c.id} className="group cursor-pointer transition-colors hover:bg-white/[0.03]">
               <td className="py-3 pr-4">
-                <div className="flex items-center gap-3">
+                <Link
+                  href={`/coach/clients/${c.id}`}
+                  className="flex items-center gap-3"
+                  aria-label={`View ${c.name}`}
+                >
                   <Avatar initials={c.avatarInitials} size="sm" />
                   <div>
-                    <div className="font-semibold text-white">{c.name}</div>
+                    <div className="font-semibold text-white group-hover:text-blood-400">{c.name}</div>
                     <div className="text-xs text-zinc-500">{c.coachingFocus.join(" · ")}</div>
                   </div>
-                </div>
+                </Link>
               </td>
               <td className="py-3 pr-4">
                 <Pill className={riskClasses(c.riskLevel)}>
@@ -53,6 +60,15 @@ export function ClientRoster({ clients }: { clients: Client[] }) {
               </td>
               <td className="py-3 pr-4 text-zinc-400">{relativeDate(c.lastCheckIn)}</td>
               <td className="py-3 pr-4 text-right font-medium text-zinc-200">{currency(c.monthlyRate)}</td>
+              <td className="py-3 text-right">
+                <Link
+                  href={`/coach/clients/${c.id}`}
+                  className="inline-grid h-7 w-7 place-items-center rounded-lg text-zinc-600 transition-colors hover:bg-white/5 hover:text-white"
+                  aria-label={`View ${c.name}`}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </td>
             </tr>
           ))}
         </tbody>
