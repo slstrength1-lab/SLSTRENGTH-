@@ -30,6 +30,7 @@ const DATA_SOURCES = {
   Programs: "aac6fb13-f9a7-4e71-8ee3-d9c4c0bf8481",
   Content: "7b9428d8-9f4f-48c8-95d6-9a95bef9fc1f",
   "Business Metrics": "b456da35-4b5d-4870-a802-5c699d350855",
+  Workouts: "7f5e8a76-c1f1-4f66-856b-122ea2e9904c",
 };
 
 function loadEnvLocal(path) {

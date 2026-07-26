@@ -41,6 +41,7 @@ import type {
   ContentPillar,
   ContentStatus,
   Metric,
+  WorkoutRow,
 } from "./types";
 
 /** Data source IDs from the live SL Strength OS Notion workspace. */
@@ -52,6 +53,7 @@ export const NOTION_DATA_SOURCES = {
   programs: "aac6fb13-f9a7-4e71-8ee3-d9c4c0bf8481",
   content: "7b9428d8-9f4f-48c8-95d6-9a95bef9fc1f",
   metrics: "b456da35-4b5d-4870-a802-5c699d350855",
+  workouts: "7f5e8a76-c1f1-4f66-856b-122ea2e9904c",
 } as const;
 
 /** True once NOTION_API_KEY is configured. */
@@ -101,6 +103,7 @@ const dateStr = (p: Prop): string | null =>
 const email = (p: Prop): string => p?.email ?? "";
 const phone = (p: Prop): string => p?.phone_number ?? "";
 const url = (p: Prop): string => p?.url ?? "";
+const checkbox = (p: Prop): boolean => Boolean(p?.checkbox);
 const relationIds = (p: Prop): string[] => ((p?.relation ?? []) as Prop[]).map((r) => r.id);
 
 function initials(name: string): string {
@@ -247,6 +250,34 @@ function mapMetric(page: Prop): Metric {
     calls: number(p["Calls"]) ?? 0,
     closeRate: number(p["Close Rate %"]) ?? 0,
     retention: number(p["Retention %"]) ?? 0,
+  };
+}
+
+function mapWorkout(page: Prop): WorkoutRow {
+  const p: Props = page.properties;
+  const actualLoad = number(p["Actual Load (lb)"]);
+  const actualReps = number(p["Actual Reps"]);
+  const rpe = number(p["RPE"]);
+  return {
+    id: page.id,
+    notionId: page.id,
+    programId: relationIds(p["Program"])[0] ?? "",
+    clientId: relationIds(p["Client"])[0] ?? "",
+    week: number(p["Week"]) ?? 0,
+    day: number(p["Day"]) ?? 0,
+    focus: text(p["Focus"]),
+    order: number(p["Order"]) ?? 0,
+    exercise: text(p["Exercise"]) || "Exercise",
+    sets: number(p["Sets"]) ?? 0,
+    reps: text(p["Reps"]),
+    load: text(p["Load"]),
+    actualLoad: actualLoad ?? undefined,
+    actualReps: actualReps ?? undefined,
+    rpe: rpe ?? undefined,
+    tempo: text(p["Tempo"]) || undefined,
+    completed: checkbox(p["Completed"]),
+    date: dateStr(p["Date"]) ?? undefined,
+    notes: text(p["Notes"]) || undefined,
   };
 }
 
@@ -561,6 +592,10 @@ export const notion = {
     fetchOrFallback("content", NOTION_DATA_SOURCES.content, mapContent, sample.content),
   getMetrics: (): Promise<Metric[]> =>
     fetchOrFallback("metrics", NOTION_DATA_SOURCES.metrics, mapMetric, sample.metrics),
+  // Workouts is a new database with no sample equivalent — fall back to empty so
+  // the coach view shows a clean empty state until real rows are entered.
+  getWorkouts: (): Promise<WorkoutRow[]> =>
+    fetchOrFallback("workouts", NOTION_DATA_SOURCES.workouts, mapWorkout, []),
 
   // Writes
   createCheckIn,

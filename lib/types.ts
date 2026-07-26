@@ -198,6 +198,38 @@ export interface Exercise {
   rest: string; // e.g. "2-3 min"
   notes?: string;
   tempo?: string;
+  // Optional performance fields (populated from the Notion Workouts database).
+  rpe?: number;
+  actualLoad?: number; // lb
+  actualReps?: number;
+  completed?: boolean;
+}
+
+/**
+ * One row of the Notion Workouts database — the exercise-per-session grain that
+ * backs HPOS training analysis. The store groups these by Program → Week → Day
+ * → Order to assemble `ProgramWeek[]` for the UI.
+ */
+export interface WorkoutRow {
+  id: ID;
+  notionId?: string;
+  programId: ID;
+  clientId: ID;
+  week: number;
+  day: number;
+  focus: string;
+  order: number;
+  exercise: string;
+  sets: number;
+  reps: string; // prescribed
+  load: string; // prescribed
+  actualLoad?: number; // lb, performed
+  actualReps?: number; // performed
+  rpe?: number; // 1-10
+  tempo?: string;
+  completed: boolean;
+  date?: string; // ISO
+  notes?: string;
 }
 
 export interface WorkoutDay {

@@ -25,6 +25,10 @@ import type {
   ContentItem,
   Metric,
   ProgramPhase,
+  ProgramWeek,
+  WorkoutDay,
+  Exercise,
+  WorkoutRow,
   NutritionPlan,
   ProgressPoint,
   Message,
@@ -40,12 +44,66 @@ const leadsRaw = cache(() => notion.getLeads());
 const salesRaw = cache(() => notion.getSales());
 const contentRaw = cache(() => notion.getContent());
 const metricsRaw = cache(() => notion.getMetrics());
+const workoutsRaw = cache(() => notion.getWorkouts());
 
 function activePhase(programs: Program[], clientId: string): ProgramPhase | undefined {
   const p =
     programs.find((x) => x.clientId === clientId && x.status === "Active") ??
     programs.find((x) => x.clientId === clientId);
   return p?.phase;
+}
+
+/**
+ * Assemble the Notion Workouts rows for one program into the renderable
+ * `ProgramWeek[]` shape, grouped Week → Day → Order. Returns [] when there are
+ * no rows — nothing is fabricated. This is the bridge from the flat, AI-friendly
+ * Workouts database to the existing training UI (ProgramStructure / TrainingProgram).
+ */
+function weeksFromWorkouts(rows: WorkoutRow[]): ProgramWeek[] {
+  if (!rows.length) return [];
+  const byWeek = new Map<number, WorkoutRow[]>();
+  for (const r of rows) {
+    const arr = byWeek.get(r.week) ?? [];
+    arr.push(r);
+    byWeek.set(r.week, arr);
+  }
+  return [...byWeek.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([week, weekRows]) => {
+      const byDay = new Map<number, WorkoutRow[]>();
+      for (const r of weekRows) {
+        const arr = byDay.get(r.day) ?? [];
+        arr.push(r);
+        byDay.set(r.day, arr);
+      }
+      const days: WorkoutDay[] = [...byDay.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([day, dayRows]) => {
+          const ordered = [...dayRows].sort((a, b) => a.order - b.order);
+          const focus = ordered.find((r) => r.focus)?.focus ?? "";
+          return {
+            day: focus ? `Day ${day} — ${focus}` : `Day ${day}`,
+            focus,
+            completed: ordered.length > 0 && ordered.every((r) => r.completed),
+            exercises: ordered.map(
+              (r): Exercise => ({
+                name: r.exercise,
+                sets: r.sets,
+                reps: r.reps,
+                load: r.load,
+                rest: "",
+                notes: r.notes,
+                tempo: r.tempo,
+                rpe: r.rpe,
+                actualLoad: r.actualLoad,
+                actualReps: r.actualReps,
+                completed: r.completed,
+              }),
+            ),
+          };
+        });
+      return { week, label: `Week ${week}`, days };
+    });
 }
 
 /* ------------------------------------------------------------------ */
@@ -84,14 +142,17 @@ export async function getCurrentClient(): Promise<Client> {
 /* ------------------------------------------------------------------ */
 
 export async function programForClient(clientId: string): Promise<Program | undefined> {
-  const programs = await programsRaw();
+  const [programs, workouts] = await Promise.all([programsRaw(), workoutsRaw()]);
   const program =
     programs.find((p) => p.clientId === clientId && p.status === "Active") ??
     programs.find((p) => p.clientId === clientId);
   if (!program) return undefined;
+  // Prefer the real Workouts database once rows exist for this program.
+  const realWeeks = weeksFromWorkouts(workouts.filter((w) => w.programId === program.id));
+  if (realWeeks.length) return { ...program, weeks: realWeeks };
   if (program.weeks.length > 0) return program;
-  // Live programs store their weekly structure in a linked spreadsheet, not in
-  // Notion — attach a sample training block so the Training page still renders.
+  // No Workouts rows yet: attach a sample training block so the athlete's
+  // Training page still renders during the prototype phase.
   const template = sample.programs.find((s) => s.clientId === clientId) ?? sample.programs[0];
   return { ...program, weeks: template?.weeks ?? [] };
 }
@@ -103,9 +164,12 @@ export async function programForClient(clientId: string): Promise<Program | unde
  * structure on the athlete's Training page.
  */
 export async function programsForClient(clientId: string): Promise<Program[]> {
-  const all = await programsRaw();
+  const [all, workouts] = await Promise.all([programsRaw(), workoutsRaw()]);
   return all
     .filter((p) => p.clientId === clientId)
+    // Attach real weekly structure from the Workouts database (empty until rows
+    // are entered — the coach view then shows its clean empty state).
+    .map((p) => ({ ...p, weeks: weeksFromWorkouts(workouts.filter((w) => w.programId === p.id)) }))
     .sort((a, b) => (a.startDate < b.startDate ? 1 : -1));
 }
 
