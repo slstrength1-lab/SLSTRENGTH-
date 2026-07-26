@@ -10,9 +10,10 @@ business. This repo now holds two layers:
 2. **The interface prototype** — a Next.js app that shows what the future SL Strength
    **client portal** and **coach dashboard** look like on top of that backend.
 
-> The prototype uses realistic **sample data**. It is API-ready: every page reads through
-> an adapter (`lib/notion.ts`) that will return live Notion data once a key is added,
-> with no page changes required.
+> **Notion is the source of truth.** Every page reads through a data layer
+> (`lib/store.ts`) backed by the Notion adapter (`lib/notion.ts`). Set `NOTION_API_KEY`
+> and the app serves live Notion data; leave it unset (or if a query fails) and it falls
+> back to bundled sample data so the prototype always renders.
 
 ## Run the prototype
 
@@ -47,8 +48,9 @@ app/
 components/                # AppShell, Brand, primitives, charts, feature UI
 lib/
   types.ts                 # Domain models (mirror the Notion databases)
-  data.ts                  # Realistic sample data (the in-memory "database")
-  notion.ts                # Notion adapter — swap sample data for live data here
+  notion.ts                # Notion adapter — live queries + property mappers + fallback
+  store.ts                 # Async data layer the pages call (caching + enrichment)
+  data.ts                  # Sample data (fallback + prototype-only features)
   format.ts                # Formatting + derived-metric helpers
 docs/                      # Notion backend architecture + Command Center guide
 ```
@@ -60,16 +62,32 @@ docs/                      # Notion backend architecture + Command Center guide
 optional `notionId`). Training structure (`ProgramWeek → WorkoutDay → Exercise`) and the
 client `NutritionPlan` are nested types that will live inside the Program / Client records.
 
-## Connecting Notion later
+## Live Notion connection
 
-1. `npm install @notionhq/client` and set `NOTION_API_KEY` in `.env.local`.
-2. Implement the functions in [`lib/notion.ts`](lib/notion.ts) against the data-source IDs
-   already listed there (they match the live workspace).
-3. Map each Notion property to the model fields in `lib/types.ts`.
+The Notion backend is wired up (via `@notionhq/client` v5, API version 2025-09-03).
 
-Nothing in `app/` or `components/` changes — the UI only ever calls the adapter and the
-API routes. `lib/notion.ts` exposes `isLive` (true once the key is set) so you can roll the
-backend over incrementally.
+1. Create a Notion integration at <https://www.notion.so/my-integrations> and **share each
+   SL Strength database with it**.
+2. Copy `.env.example` to `.env.local` and set `NOTION_API_KEY` (optionally
+   `NOTION_DEMO_CLIENT_EMAIL` to choose which client the portal logs in as).
+3. `npm run dev` — the console logs the mode on first query:
+   - `[notion] Live mode …` → querying real Notion data sources.
+   - `[notion] Sample mode …` → no key set, serving sample data.
+
+**How it flows:** pages → `lib/store.ts` (async, per-request cached) → `lib/notion.ts`
+(queries the seven data sources by ID and maps each page to the `lib/types.ts` interfaces)
+→ Notion. If a query throws, that resource logs a warning and falls back to sample data —
+the page still renders. Data pages are `force-dynamic`, so each request reads fresh Notion
+data rather than a build-time snapshot.
+
+**Notion-backed:** Clients, Leads, Sales, Check-ins, Programs, Content, Business Metrics.
+**Sample-only (no Notion database yet):** the nutrition plan, body-composition history,
+message thread, and weekly priorities — these serve representative sample data per client.
+The detailed week/day/exercise training structure lives in the linked spreadsheet, so live
+Programs are shown with a sample training template.
+
+Nothing in `components/` changed for the live cutover — only the adapter, a new data layer,
+and the pages' data calls (`await`).
 
 ## Operating principles
 

@@ -1,10 +1,10 @@
 import { Phone, Video } from "lucide-react";
-import { getCurrentClient, messagesForClient } from "@/lib/data";
+import { getCurrentClient, messagesForClient } from "@/lib/store";
 import { Card, PageHeader } from "@/components/primitives";
 import { MessageThread } from "@/components/MessageThread";
 
-export default function MessagesPage() {
-  const client = getCurrentClient();
+export default async function MessagesPage() {
+  const client = await getCurrentClient();
   const messages = messagesForClient(client.id);
 
   return (

@@ -8,13 +8,7 @@ import {
   CalendarDays,
   ArrowRight,
 } from "lucide-react";
-import {
-  clients,
-  leads,
-  metrics as allMetrics,
-  content,
-  checkInsForClient,
-} from "@/lib/data";
+import { getClients, getLeads, getMetrics, getContent } from "@/lib/store";
 import {
   Card,
   PageHeader,
@@ -37,8 +31,13 @@ const contentStatusStyle: Record<string, string> = {
   Published: "bg-emerald-500/15 text-emerald-400 ring-emerald-500/25",
 };
 
-export default function CoachPage() {
-  const metrics = [...allMetrics].sort((a, b) => (a.weekOf < b.weekOf ? 1 : -1));
+export default async function CoachPage() {
+  const [clients, leads, metrics, content] = await Promise.all([
+    getClients(),
+    getLeads(),
+    getMetrics(), // already sorted newest-first
+    getContent(),
+  ]);
   const latest = metrics[0];
   const prev = metrics[1];
 
@@ -110,9 +109,7 @@ export default function CoachPage() {
           </SectionTitle>
           {riskFlags.length ? (
             <ul className="space-y-2">
-              {riskFlags.map((c) => {
-                const lastCi = checkInsForClient(c.id)[0];
-                return (
+              {riskFlags.map((c) => (
                   <li key={c.id} className="flex items-center gap-3 rounded-xl bg-ink-850/60 p-3">
                     <Avatar initials={c.avatarInitials} size="sm" />
                     <div className="min-w-0 flex-1">
@@ -125,8 +122,7 @@ export default function CoachPage() {
                       </div>
                     </div>
                   </li>
-                );
-              })}
+              ))}
             </ul>
           ) : (
             <p className="text-sm text-zinc-500">All clients green. 🔥</p>

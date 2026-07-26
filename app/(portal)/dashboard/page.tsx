@@ -15,7 +15,7 @@ import {
   prioritiesForClient,
   messagesForClient,
   checkInsForClient,
-} from "@/lib/data";
+} from "@/lib/store";
 import {
   Card,
   PageHeader,
@@ -29,13 +29,15 @@ import { WeeklyPriorities } from "@/components/WeeklyPriorities";
 import { LineChart } from "@/components/LineChart";
 import { riskClasses, shortDate, relativeDate } from "@/lib/format";
 
-export default function DashboardPage() {
-  const client = getCurrentClient();
-  const program = programForClient(client.id);
+export default async function DashboardPage() {
+  const client = await getCurrentClient();
+  const [program, checkins] = await Promise.all([
+    programForClient(client.id),
+    checkInsForClient(client.id),
+  ]);
   const progress = progressForClient(client.id);
   const priorities = prioritiesForClient(client.id);
   const messages = messagesForClient(client.id);
-  const checkins = checkInsForClient(client.id);
 
   const first = progress[0];
   const latest = progress[progress.length - 1];

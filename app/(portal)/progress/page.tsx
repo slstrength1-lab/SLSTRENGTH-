@@ -1,11 +1,11 @@
 import { TrendingDown, Scale, Percent, Ruler } from "lucide-react";
-import { getCurrentClient, progressForClient } from "@/lib/data";
+import { getCurrentClient, progressForClient } from "@/lib/store";
 import { Card, PageHeader, SectionTitle, StatCard, EmptyState } from "@/components/primitives";
 import { ProgressExplorer } from "@/components/ProgressExplorer";
 import { shortDate } from "@/lib/format";
 
-export default function ProgressPage() {
-  const client = getCurrentClient();
+export default async function ProgressPage() {
+  const client = await getCurrentClient();
   const data = progressForClient(client.id);
   const first = data[0];
   const last = data[data.length - 1];

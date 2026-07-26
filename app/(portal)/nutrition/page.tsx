@@ -1,9 +1,9 @@
 import { Beef, Wheat, Droplet, GlassWater, Info } from "lucide-react";
-import { getCurrentClient, nutritionForClient } from "@/lib/data";
+import { getCurrentClient, nutritionForClient } from "@/lib/store";
 import { Card, PageHeader, SectionTitle, Ring, ProgressBar, EmptyState } from "@/components/primitives";
 
-export default function NutritionPage() {
-  const client = getCurrentClient();
+export default async function NutritionPage() {
+  const client = await getCurrentClient();
   const plan = nutritionForClient(client.id);
 
   if (!plan) {

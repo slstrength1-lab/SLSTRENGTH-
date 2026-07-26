@@ -1,12 +1,15 @@
 import { AppShell, CLIENT_NAV } from "@/components/AppShell";
-import { getCurrentClient } from "@/lib/data";
+import { getCurrentClient } from "@/lib/store";
 
-export default function PortalLayout({
+// Always render against live Notion data (no build-time snapshot).
+export const dynamic = "force-dynamic";
+
+export default async function PortalLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const client = getCurrentClient();
+  const client = await getCurrentClient();
   return (
     <AppShell
       role="client"

@@ -1,4 +1,4 @@
-import { getCurrentClient, checkInsForClient } from "@/lib/data";
+import { getCurrentClient, checkInsForClient } from "@/lib/store";
 import { Card, PageHeader, SectionTitle, Pill } from "@/components/primitives";
 import { CheckInForm } from "@/components/CheckInForm";
 import { shortDate, relativeDate } from "@/lib/format";
@@ -9,9 +9,9 @@ const statusStyle: Record<string, string> = {
   Pending: "bg-amber-500/15 text-amber-400 ring-amber-500/25",
 };
 
-export default function CheckInsPage() {
-  const client = getCurrentClient();
-  const history = checkInsForClient(client.id);
+export default async function CheckInsPage() {
+  const client = await getCurrentClient();
+  const history = await checkInsForClient(client.id);
 
   return (
     <div className="space-y-6">

@@ -1,12 +1,12 @@
 import { ExternalLink } from "lucide-react";
-import { getCurrentClient, programForClient } from "@/lib/data";
+import { getCurrentClient, programForClient } from "@/lib/store";
 import { PageHeader, Pill, Card, EmptyState } from "@/components/primitives";
 import { TrainingProgram } from "@/components/TrainingProgram";
 import { shortDate } from "@/lib/format";
 
-export default function TrainingPage() {
-  const client = getCurrentClient();
-  const program = programForClient(client.id);
+export default async function TrainingPage() {
+  const client = await getCurrentClient();
+  const program = await programForClient(client.id);
 
   return (
     <div className="space-y-6">
