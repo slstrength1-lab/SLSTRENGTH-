@@ -13,6 +13,8 @@ workflow, automation, and AI agent will plug into.
 
 - **Notion workspace:** Shane Lanteigne's Space
 - **Hub page:** [🏋️ SL Strength OS](https://app.notion.com/p/3a9a58f71c0f810599e7eb3abbc017fd)
+- **Daily dashboard:** [🏆 SL Strength Command Center](https://app.notion.com/p/3a9a58f71c0f81a185e0e63d5fd04d87)
+  — the one page Shane opens each day (see [`docs/command-center.md`](docs/command-center.md))
 
 ## The seven databases
 

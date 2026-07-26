@@ -1,4 +1,4 @@
-# SL Strength OS — Data Architecture (Phase 1)
+# SL Strength OS — Data Architecture
 
 This is the connection reference for the SL Strength OS Notion workspace. Future
 automations, integrations, and AI agents should read data source IDs and property names
@@ -7,6 +7,12 @@ from here.
 - **Workspace:** Shane Lanteigne's Space (`35ca58f7-1c0f-814d-8906-00031a20f920`)
 - **Hub page:** [🏋️ SL Strength OS](https://app.notion.com/p/3a9a58f71c0f810599e7eb3abbc017fd)
   — page ID `3a9a58f7-1c0f-8105-99e7-eb3abbc017fd`
+- **Command Center:** [🏆 SL Strength Command Center](https://app.notion.com/p/3a9a58f71c0f81a185e0e63d5fd04d87)
+  — the daily CEO dashboard (page ID `3a9a58f7-1c0f-81a1-85e0-e63d5fd04d87`). See
+  [`command-center.md`](command-center.md).
+
+> **Phase 1** built the seven databases and their relations. **Phase 2** added the
+> Command Center dashboard plus the dashboard-supporting fields noted below.
 
 ## Database IDs
 
@@ -46,8 +52,10 @@ from here.
 |---|---|---|---|
 | `Lifetime Revenue` | Sales | `Amount` | sum |
 | `Total Check-ins` | Check-ins | `Check-in` | count |
+| `Last Check-In` | Check-ins | `Date` | latest date |
+| `Avg Compliance %` | Check-ins | `Compliance %` | average |
 
-Content and Business Metrics are standalone (no relations) by design in Phase 1.
+Content and Business Metrics are standalone (no relations) by design.
 
 ## Schemas
 
@@ -55,14 +63,16 @@ Content and Business Metrics are standalone (no relations) by design in Phase 1.
 `Name` (title) · `Client ID` (auto-ID, prefix CL) · `Status` (Onboarding / Active /
 Paused / Churned / Completed) · `Email` · `Phone` · `Coaching Focus` (multi: Body
 Transformation, Strength, Nutrition, Hybrid) · `Start Date` · `Renewal Date` ·
-`Monthly Rate` ($) · `Primary Goal` · `Source` (Instagram / Referral / Website / Word of
-Mouth / Other) · relations: `Sales`, `Check-ins`, `Programs`, `Original Lead` · rollups:
-`Lifetime Revenue`, `Total Check-ins`
+`Monthly Rate` ($) · `Primary Goal` · `Risk Level` (Green / Yellow / Red) · `Source`
+(Instagram / Referral / Website / Word of Mouth / Other) · relations: `Sales`,
+`Check-ins`, `Programs`, `Original Lead` · rollups: `Lifetime Revenue`, `Total Check-ins`,
+`Last Check-In`, `Avg Compliance %`
 
 ### 🎯 Leads
-`Name` (title) · `Lead ID` (auto-ID, prefix LD) · `Stage` (New / Contacted / Call Booked
-/ Proposal Sent / Won / Lost) · `Email` · `Phone` · `Source` · `Interest` (multi) ·
-`Est. Value` ($) · `Next Follow-up` · `Notes` · relation: `Converted Client`
+`Name` (title) · `Lead ID` (auto-ID, prefix LD) · `Stage` (New / Contacted / Qualified /
+Call Scheduled / Offer Presented / Closed Won / Nurture) · `Email` · `Phone` · `Source` ·
+`Interest` (multi) · `Est. Value` ($) · `Next Follow-up` · `Next Action` · `Notes` ·
+relation: `Converted Client`
 
 ### 💰 Sales
 `Sale` (title) · `Sale ID` (auto-ID, prefix SL) · `Amount` ($) · `Date` · `Package`
@@ -84,14 +94,17 @@ High) · `Sleep` (Poor / Okay / Good) · `Stress` (Low / Moderate / High) · `Wi
 ### 🎬 Content
 `Title` (title) · `Platform` (multi: Instagram, YouTube, TikTok, Email, X) · `Format`
 (Reel / Carousel / Story / Post / Email / Long-form Video) · `Pillar` (Education /
-Transformation / Behind the Scenes / Promotion / Authority) · `Status` (Idea / Scripting
-/ Filming / Editing / Scheduled / Published) · `Publish Date` · `Hook / Notes`
+Transformation / Behind the Scenes / Promotion / Authority) · `Status` (Idea / Writing /
+Filming / Editing / Scheduled / Published) · `Publish Date` · `Hook / Notes`
 
 ### 📈 Business Metrics
 `Period` (title) · `Week Of` · `Active Clients` · `New Leads` · `New Clients` ·
-`Revenue` ($) · `MRR` ($) · `Churned` · `Content Published` · `Notes`
+`Revenue` ($) · `MRR` ($) · `Churned` · `Content Published` · `Calls` · `Close Rate %` ·
+`Retention %` · `Notes`
 
 ## Views
+
+Views on the databases themselves (from Phase 1):
 
 | Database | View | Type | Configuration |
 |---|---|---|---|
@@ -100,6 +113,9 @@ Transformation / Behind the Scenes / Promotion / Authority) · `Status` (Idea / 
 | Content | Content Calendar | Calendar | By `Publish Date` |
 | Content | Production Board | Board | Grouped by `Status` |
 | Check-ins | Needs Review | Table | `Status` ≠ Reviewed, newest first |
+
+The **Command Center** page hosts its own linked views — see
+[`command-center.md`](command-center.md) for the full list and their filters.
 
 ## Example data
 
