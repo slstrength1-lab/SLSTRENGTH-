@@ -38,8 +38,9 @@ export default async function CoachPage() {
     getMetrics(), // already sorted newest-first
     getContent(),
   ]);
-  const latest = metrics[0];
-  const prev = metrics[1];
+  const latest = metrics[0]; // may be undefined if the DB has no rows
+  const prev = metrics[1]; // undefined when only one metric exists
+  const hasPrev = Boolean(prev);
 
   const activeClients = clients.filter(
     (c) => c.status === "Active" || c.status === "Onboarding",
@@ -49,7 +50,7 @@ export default async function CoachPage() {
     .sort((a, b) => (a.riskLevel === "Red" ? -1 : 1));
 
   const liveMrr = activeClients.reduce((s, c) => s + c.monthlyRate, 0);
-  const mrrDelta = latest.mrr - prev.mrr;
+  const mrrDelta = hasPrev ? latest.mrr - prev.mrr : 0;
 
   const openLeads = leads.filter((l) => l.stage !== "Closed Won" && l.stage !== "Nurture");
   const pipelineValue = openLeads.reduce((s, l) => s + l.estValue, 0);
@@ -64,7 +65,7 @@ export default async function CoachPage() {
         subtitle="Who needs attention, what's selling, and how the business is performing."
         actions={
           <span className="rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-xs text-zinc-400">
-            Week of {shortDate(latest.weekOf)}
+            {latest ? `Week of ${shortDate(latest.weekOf)}` : "No metrics yet"}
           </span>
         }
       />
@@ -76,8 +77,12 @@ export default async function CoachPage() {
           value={currency(liveMrr)}
           icon={<DollarSign className="h-4 w-4" />}
           accent
-          delta={{ value: `${mrrDelta >= 0 ? "+" : ""}${currency(mrrDelta)}`, positive: mrrDelta >= 0 }}
-          sub="Live from active clients"
+          delta={
+            hasPrev
+              ? { value: `${mrrDelta >= 0 ? "+" : ""}${currency(mrrDelta)}`, positive: mrrDelta >= 0 }
+              : undefined
+          }
+          sub={hasPrev ? "Live from active clients" : "No previous data"}
         />
         <StatCard
           label="Active clients"
@@ -93,9 +98,9 @@ export default async function CoachPage() {
         />
         <StatCard
           label="Close rate"
-          value={`${latest.closeRate}%`}
+          value={`${latest?.closeRate ?? 0}%`}
           icon={<Target className="h-4 w-4" />}
-          sub={`${latest.calls} calls · ${latest.retention}% retention`}
+          sub={`${latest?.calls ?? 0} calls · ${latest?.retention ?? 0}% retention`}
         />
       </div>
 
@@ -133,15 +138,19 @@ export default async function CoachPage() {
           <SectionTitle right={<span className="text-xs text-zinc-500">MRR · last {metrics.length} weeks</span>}>
             Revenue trend
           </SectionTitle>
-          <LineChart
-            series={{
-              points: [...metrics].reverse().map((m) => ({ x: shortDate(m.weekOf), y: m.mrr })),
-              color: "#e11d2a",
-            }}
-            height={200}
-            yLabel="MRR ($)"
-            format={(n) => `$${n}`}
-          />
+          {metrics.length ? (
+            <LineChart
+              series={{
+                points: [...metrics].reverse().map((m) => ({ x: shortDate(m.weekOf), y: m.mrr })),
+                color: "#e11d2a",
+              }}
+              height={200}
+              yLabel="MRR ($)"
+              format={(n) => `$${n}`}
+            />
+          ) : (
+            <p className="py-10 text-center text-sm text-zinc-500">No metrics logged yet.</p>
+          )}
         </Card>
       </div>
 
