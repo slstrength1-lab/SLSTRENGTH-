@@ -36,6 +36,7 @@ import {
   EmptyState,
 } from "@/components/primitives";
 import { LineChart } from "@/components/LineChart";
+import { ProgramStructure } from "@/components/ProgramStructure";
 import { CoachNotes } from "@/components/CoachNotes";
 import {
   currency,
@@ -219,6 +220,36 @@ export default async function ClientDetailPage({
                   </div>
                 </div>
 
+                {/* Weekly structure — renders whatever the program actually
+                    contains. Live Notion Programs hold metadata only (the plan
+                    lives in the linked sheet), so weeks is empty there and the
+                    clean empty state below is shown instead. Nothing invented. */}
+                {activeProgram.weeks.length > 0 ? (
+                  <ProgramStructure weeks={activeProgram.weeks} />
+                ) : (
+                  <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-5 text-center">
+                    <Dumbbell className="mx-auto mb-2 h-5 w-5 text-zinc-600" />
+                    <p className="text-sm font-medium text-zinc-300">
+                      Weekly plan not stored in Notion
+                    </p>
+                    <p className="mx-auto mt-1 max-w-sm text-xs text-zinc-500">
+                      This program&apos;s day-by-day exercises, sets, reps, and loads live in the
+                      linked program sheet. Open it below, or add a Workouts database
+                      (Program, Week, Day, Exercise, Sets, Reps, Load, RPE) to show them here.
+                    </p>
+                    {activeProgram.link && (
+                      <a
+                        href={activeProgram.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blood-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blood-600"
+                      >
+                        Open program sheet <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                )}
+
                 {programs.length > 1 && (
                   <div>
                     <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-600">
@@ -239,18 +270,10 @@ export default async function ClientDetailPage({
                     </ul>
                   </div>
                 )}
-
-                <FieldGap
-                  title="Weekly structure & set logging not in Notion"
-                  fields={[
-                    "The week/day/exercise plan lives in the linked program spreadsheet, not Notion.",
-                    "To show it here, add a Workouts (or Sets) database: Program (relation), Week, Day, Exercise, Sets, Reps, Load, RPE, Completed.",
-                  ]}
-                />
               </div>
             ) : (
               <EmptyState
-                title="No program assigned"
+                title="No training program assigned"
                 hint="Assign one from the coach dashboard, or POST /api/programs."
               />
             )}
