@@ -109,6 +109,8 @@ export interface Lead {
   nextFollowUp: string; // ISO
   nextAction: string;
   notes: string;
+  goal?: string;
+  problem?: string;
 }
 
 export interface Sale {
@@ -135,7 +137,9 @@ export interface CheckIn {
   sleep: SleepRating;
   stress: RatingLow;
   wins: string;
-  adjustments: string;
+  challenges?: string;
+  notes?: string;
+  adjustments: string; // coach's response (set on review, not by the client)
   status: CheckInStatus;
 }
 

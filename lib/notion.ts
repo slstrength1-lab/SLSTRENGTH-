@@ -155,6 +155,8 @@ function mapLead(page: Prop): Lead {
     nextFollowUp: dateStr(p["Next Follow-up"]) ?? "",
     nextAction: text(p["Next Action"]),
     notes: text(p["Notes"]),
+    goal: text(p["Goal"]),
+    problem: text(p["Problem"]),
   };
 }
 
@@ -187,6 +189,8 @@ function mapCheckIn(page: Prop): CheckIn {
     sleep: (select(p["Sleep"]) as SleepRating) ?? "Okay",
     stress: (select(p["Stress"]) as RatingLow) ?? "Moderate",
     wins: text(p["Wins"]),
+    challenges: text(p["Challenges"]),
+    notes: text(p["Notes"]),
     adjustments: text(p["Adjustments"]),
     status: (select(p["Status"]) as CheckInStatus) ?? "Submitted",
   };
@@ -287,10 +291,262 @@ async function fetchOrFallback<T>(
 }
 
 /* ------------------------------------------------------------------ */
-/* Public adapter (unchanged surface — same shapes, now live-capable)  */
+/* Write layer — create/update Notion records (sample fallback)        */
+/* ------------------------------------------------------------------ */
+
+// Notion property-value builders for pages.create / pages.update.
+const wTitle = (s: string) => ({ title: [{ text: { content: s } }] });
+const wRich = (s?: string) => ({ rich_text: s ? [{ text: { content: s } }] : [] });
+const wNum = (n?: number) => ({ number: typeof n === "number" ? n : null });
+const wSel = (name?: string) => (name ? { select: { name } } : { select: null });
+const wMulti = (names: string[]) => ({ multi_select: names.map((name) => ({ name })) });
+const wDate = (start?: string) => (start ? { date: { start } } : { date: null });
+const wRel = (ids: string[]) => ({ relation: ids.map((id) => ({ id })) });
+const wEmail = (s?: string) => ({ email: s || null });
+
+const today = (): string => new Date().toISOString().slice(0, 10);
+const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
+let _seq = 0;
+function localId(prefix: string): string {
+  _seq += 1;
+  return `local_${prefix}_${_seq}`;
+}
+/** Prepend to a sample array so it shows up immediately on the next read. */
+function sampleInsert<T>(arr: T[], item: T): T {
+  arr.unshift(item);
+  return item;
+}
+
+async function createPage(dataSourceId: string, properties: Record<string, unknown>): Promise<Prop> {
+  const args: Prop = {
+    parent: { type: "data_source_id", data_source_id: dataSourceId },
+    properties,
+  };
+  return getClient().pages.create(args);
+}
+
+/* ---- Input payloads --------------------------------------------- */
+
+export interface CheckInInput {
+  clientId: string;
+  clientName?: string;
+  date?: string;
+  bodyweight: number;
+  compliance: number;
+  energy: RatingLow;
+  sleep: SleepRating;
+  stress: RatingLow;
+  wins?: string;
+  challenges?: string;
+  notes?: string;
+}
+
+export interface LeadInput {
+  name: string;
+  contact?: string;
+  source?: string;
+  goal?: string;
+  problem?: string;
+  status?: LeadStage;
+}
+
+export interface ProgramInput {
+  clientId: string;
+  clientName?: string;
+  type: ProgramType;
+  phase: ProgramPhase;
+  startDate?: string;
+  endDate?: string;
+  name?: string;
+}
+
+/* ---- 1. Check-in submission -------------------------------------- */
+
+async function createCheckIn(input: CheckInInput): Promise<CheckIn> {
+  announce();
+  const date = input.date ?? today();
+  const record: CheckIn = {
+    id: localId("ci"),
+    title: `${input.clientName ?? "Check-in"} — ${date}`,
+    clientId: input.clientId,
+    date,
+    bodyweight: input.bodyweight,
+    compliance: input.compliance,
+    energy: input.energy,
+    sleep: input.sleep,
+    stress: input.stress,
+    wins: input.wins ?? "",
+    challenges: input.challenges ?? "",
+    notes: input.notes ?? "",
+    adjustments: "",
+    status: "Submitted",
+  };
+  if (!isLive) return sampleInsert(sample.checkIns, record);
+  try {
+    const props: Record<string, unknown> = {
+      "Check-in": wTitle(record.title),
+      Date: wDate(date),
+      Bodyweight: wNum(record.bodyweight),
+      "Compliance %": wNum(record.compliance),
+      Energy: wSel(record.energy),
+      Sleep: wSel(record.sleep),
+      Stress: wSel(record.stress),
+      Wins: wRich(record.wins),
+      Challenges: wRich(record.challenges),
+      Notes: wRich(record.notes),
+      Status: wSel("Submitted"),
+    };
+    if (input.clientId) props["Client"] = wRel([input.clientId]);
+    return mapCheckIn(await createPage(NOTION_DATA_SOURCES.checkins, props));
+  } catch (err) {
+    console.warn("[notion] createCheckIn failed — writing to sample memory:", errMsg(err));
+    return sampleInsert(sample.checkIns, record);
+  }
+}
+
+/* ---- 2. Lead creation -------------------------------------------- */
+
+async function createLead(input: LeadInput): Promise<Lead> {
+  announce();
+  const record: Lead = {
+    id: localId("ld"),
+    name: input.name,
+    stage: input.status ?? "New",
+    email: input.contact ?? "",
+    source: input.source ?? "",
+    interest: [],
+    estValue: 0,
+    nextFollowUp: "",
+    nextAction: "",
+    notes: "",
+    goal: input.goal ?? "",
+    problem: input.problem ?? "",
+  };
+  if (!isLive) return sampleInsert(sample.leads, record);
+  try {
+    const props: Record<string, unknown> = {
+      Name: wTitle(record.name),
+      Stage: wSel(record.stage),
+      Email: wEmail(record.email),
+      Source: wSel(record.source || undefined),
+      Goal: wRich(record.goal),
+      Problem: wRich(record.problem),
+    };
+    return mapLead(await createPage(NOTION_DATA_SOURCES.leads, props));
+  } catch (err) {
+    console.warn("[notion] createLead failed — writing to sample memory:", errMsg(err));
+    return sampleInsert(sample.leads, record);
+  }
+}
+
+/* ---- 3. Client creation on Closed Won ---------------------------- */
+
+function clientRecordFromLead(lead: Lead): Client {
+  return {
+    id: localId("cl"),
+    name: lead.name,
+    email: lead.email,
+    avatarInitials: initials(lead.name),
+    status: "Onboarding",
+    coachingFocus: lead.interest,
+    startDate: today(),
+    renewalDate: "",
+    monthlyRate: 0,
+    primaryGoal: lead.goal ?? "",
+    riskLevel: "Green",
+    source: lead.source,
+    currentPhase: "Foundation",
+    compliance: 0,
+    lastCheckIn: today(),
+    lifetimeRevenue: 0,
+  };
+}
+
+async function createClientFromLead(lead: Lead): Promise<Client> {
+  const record = clientRecordFromLead(lead);
+  if (!isLive) return sampleInsert(sample.clients, record);
+  const props: Record<string, unknown> = {
+    Name: wTitle(record.name),
+    "Primary Goal": wRich(record.primaryGoal),
+    Source: wSel(record.source || undefined),
+    "Coaching Focus": wMulti(record.coachingFocus),
+    Status: wSel("Onboarding"),
+    Email: wEmail(record.email),
+  };
+  // Link the originating lead (dual relation also back-links the lead).
+  if (lead.id && !lead.id.startsWith("local_")) props["Original Lead"] = wRel([lead.id]);
+  return mapClient(await createPage(NOTION_DATA_SOURCES.clients, props));
+}
+
+async function updateLeadStage(
+  id: string,
+  stage: LeadStage,
+): Promise<{ lead: Lead; client?: Client }> {
+  announce();
+  const sampleUpdate = (): { lead: Lead; client?: Client } => {
+    const lead = sample.leads.find((l) => l.id === id);
+    if (!lead) throw new Error(`Lead ${id} not found in sample memory`);
+    lead.stage = stage;
+    const client =
+      stage === "Closed Won"
+        ? sampleInsert(sample.clients, clientRecordFromLead(lead))
+        : undefined;
+    return { lead, client };
+  };
+
+  if (!isLive) return sampleUpdate();
+  try {
+    const client = getClient();
+    await client.pages.update({ page_id: id, properties: { Stage: wSel(stage) } } as Prop);
+    const lead = mapLead(await client.pages.retrieve({ page_id: id }));
+    const newClient = stage === "Closed Won" ? await createClientFromLead(lead) : undefined;
+    return { lead, client: newClient };
+  } catch (err) {
+    console.warn("[notion] updateLeadStage failed — updating sample memory:", errMsg(err));
+    return sampleUpdate();
+  }
+}
+
+/* ---- 4. Program assignment --------------------------------------- */
+
+async function createProgram(input: ProgramInput): Promise<Program> {
+  announce();
+  const record: Program = {
+    id: localId("pr"),
+    name: input.name ?? `${input.type} Block`,
+    clientId: input.clientId,
+    type: input.type,
+    phase: input.phase,
+    startDate: input.startDate ?? today(),
+    endDate: input.endDate ?? "",
+    status: "Active",
+    weeks: [],
+  };
+  if (!isLive) return sampleInsert(sample.programs, record);
+  try {
+    const props: Record<string, unknown> = {
+      Program: wTitle(record.name),
+      Type: wSel(record.type),
+      Phase: wSel(record.phase),
+      "Start Date": wDate(record.startDate),
+      "End Date": wDate(record.endDate || undefined),
+      Status: wSel("Active"),
+    };
+    if (input.clientId) props["Client"] = wRel([input.clientId]);
+    return mapProgram(await createPage(NOTION_DATA_SOURCES.programs, props));
+  } catch (err) {
+    console.warn("[notion] createProgram failed — writing to sample memory:", errMsg(err));
+    return sampleInsert(sample.programs, record);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Public adapter (reads + writes; same shapes, live-capable)          */
 /* ------------------------------------------------------------------ */
 
 export const notion = {
+  // Reads
   getClients: (): Promise<Client[]> =>
     fetchOrFallback("clients", NOTION_DATA_SOURCES.clients, mapClient, sample.clients),
   getLeads: (): Promise<Lead[]> =>
@@ -305,4 +561,10 @@ export const notion = {
     fetchOrFallback("content", NOTION_DATA_SOURCES.content, mapContent, sample.content),
   getMetrics: (): Promise<Metric[]> =>
     fetchOrFallback("metrics", NOTION_DATA_SOURCES.metrics, mapMetric, sample.metrics),
+
+  // Writes
+  createCheckIn,
+  createLead,
+  updateLeadStage,
+  createProgram,
 };

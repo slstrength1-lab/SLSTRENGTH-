@@ -26,7 +26,7 @@ export default async function CheckInsPage() {
           <SectionTitle right={<Pill className="bg-blood-500/10 text-blood-400 ring-blood-500/30">Due Sunday</Pill>}>
             This week
           </SectionTitle>
-          <CheckInForm clientId={client.id} />
+          <CheckInForm clientId={client.id} clientName={client.name} />
         </Card>
 
         <Card className="h-fit p-6">

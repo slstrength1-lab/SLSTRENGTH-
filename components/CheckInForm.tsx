@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Loader2, Send } from "lucide-react";
+import { CheckCircle2, Loader2, Send, AlertTriangle } from "lucide-react";
 
 const RATINGS = ["Low", "Moderate", "High"] as const;
 const SLEEP = ["Poor", "Okay", "Good"] as const;
@@ -43,40 +43,47 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-export function CheckInForm({ clientId }: { clientId: string }) {
+export function CheckInForm({ clientId, clientName }: { clientId: string; clientName?: string }) {
   const [bodyweight, setBodyweight] = useState("");
   const [compliance, setCompliance] = useState(85);
   const [energy, setEnergy] = useState<(typeof RATINGS)[number]>("Moderate");
   const [sleep, setSleep] = useState<(typeof SLEEP)[number]>("Good");
   const [stress, setStress] = useState<(typeof RATINGS)[number]>("Low");
   const [wins, setWins] = useState("");
-  const [struggles, setStruggles] = useState("");
-  const [status, setStatus] = useState<"idle" | "saving" | "done">("idle");
+  const [challenges, setChallenges] = useState("");
+  const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("saving");
     try {
-      await fetch("/api/checkins", {
+      const res = await fetch("/api/checkins", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId,
+          clientName,
           bodyweight: Number(bodyweight),
           compliance,
           energy,
           sleep,
           stress,
           wins,
-          adjustments: struggles,
-          status: "Submitted",
+          challenges,
+          notes,
           date: new Date().toISOString().slice(0, 10),
         }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.ok) {
+        setStatus("done");
+      } else {
+        setStatus("error");
+      }
     } catch {
-      /* prototype: ignore network errors */
+      setStatus("error");
     }
-    setStatus("done");
   }
 
   if (status === "done") {
@@ -85,7 +92,7 @@ export function CheckInForm({ clientId }: { clientId: string }) {
         <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-400">
           <CheckCircle2 className="h-7 w-7" />
         </span>
-        <h3 className="text-lg font-semibold text-white">Check-in submitted</h3>
+        <h3 className="text-lg font-semibold text-white">Saved to SL Strength OS</h3>
         <p className="max-w-sm text-sm text-zinc-400">
           Shane will review it and send adjustments within 24 hours. You'll get a
           notification when your feedback is ready.
@@ -102,6 +109,13 @@ export function CheckInForm({ clientId }: { clientId: string }) {
 
   return (
     <form onSubmit={submit} className="space-y-6">
+      {status === "error" && (
+        <div className="flex items-center gap-2 rounded-xl border border-blood-500/40 bg-blood-500/10 px-4 py-3 text-sm text-blood-400">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          Unable to sync — check your connection and try again.
+        </div>
+      )}
+
       <div className="grid gap-6 sm:grid-cols-2">
         <Field label="Bodyweight (lb)" hint="Morning, after bathroom, before food.">
           <input
@@ -143,25 +157,37 @@ export function CheckInForm({ clientId }: { clientId: string }) {
         />
       </Field>
 
-      <Field label="Struggles & questions" hint="Where did you fall off? Anything you need from Shane?">
+      <Field label="Challenges" hint="Where did you fall off? What got in the way?">
         <textarea
-          value={struggles}
-          onChange={(e) => setStruggles(e.target.value)}
+          value={challenges}
+          onChange={(e) => setChallenges(e.target.value)}
           rows={3}
-          placeholder="Traveling next week — hotel gym only. How should I adjust?"
+          placeholder="Traveling next week — hotel gym only. Sleep slipped on Thursday…"
+          className="w-full resize-none rounded-xl border border-white/10 bg-ink-900 px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-blood-500/50 focus:ring-2 focus:ring-blood-500/20"
+        />
+      </Field>
+
+      <Field label="Notes & questions" hint="Anything else you want Shane to know or adjust?">
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+          placeholder="Should I keep the deadlift RPE at 8 while traveling?"
           className="w-full resize-none rounded-xl border border-white/10 bg-ink-900 px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-blood-500/50 focus:ring-2 focus:ring-blood-500/20"
         />
       </Field>
 
       <div className="flex items-center justify-end gap-3 border-t border-white/[0.06] pt-5">
-        <span className="text-xs text-zinc-500">Auto-saved as draft</span>
+        <span className="text-xs text-zinc-500">
+          {status === "saving" ? "Saving to SL Strength OS…" : "Auto-saved as draft"}
+        </span>
         <button
           type="submit"
           disabled={status === "saving"}
           className="inline-flex items-center gap-2 rounded-xl bg-blood-500 px-5 py-2.5 text-sm font-semibold text-white shadow-glow transition-colors hover:bg-blood-600 disabled:opacity-60"
         >
           {status === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          Submit check-in
+          {status === "error" ? "Retry" : "Submit check-in"}
         </button>
       </div>
     </form>

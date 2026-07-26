@@ -89,6 +89,27 @@ Programs are shown with a sample training template.
 Nothing in `components/` changed for the live cutover — only the adapter, a new data layer,
 and the pages' data calls (`await`).
 
+## Write-back (create / update)
+
+User actions create and update real Notion records through the same adapter. Each write
+targets the live Notion database when `NOTION_API_KEY` is set, and falls back to sample
+memory (with a logged warning) when the key is missing or a write fails — so the UI always
+gets a success/failure result.
+
+| Action | Endpoint | Effect |
+|---|---|---|
+| Submit check-in | `POST /api/checkins` | Creates a **Check-in** page linked to the client (bodyweight, compliance, energy, sleep, stress, wins, challenges, notes; status `Submitted`) |
+| Create lead | `POST /api/leads` | Creates a **Lead** (name, contact→email, source, goal, problem, stage) |
+| Convert lead | `PATCH /api/leads/:id` `{ stage }` | Updates the lead's stage; when it becomes **Closed Won**, creates a linked **Client** (copies name, goal, source, coaching focus; sets `Original Lead` relation) |
+| Assign program | `POST /api/programs` | Creates a **Program** linked to a client (type, phase, start/end dates; status `Active`) |
+
+The client **Check-in form** posts to `/api/checkins` with optimistic states —
+_"Saving to SL Strength OS…"_ → _"Saved to SL Strength OS"_ on success, or _"Unable to
+sync"_ (with retry) on failure. The write functions live in `lib/notion.ts`
+(`createCheckIn`, `createLead`, `updateLeadStage`, `createProgram`); two rich-text columns
+were added to the live databases to back the new fields (Check-ins `Challenges`/`Notes`,
+Leads `Goal`/`Problem`).
+
 ## Operating principles
 
 Premium experience · high-touch where it matters · automation for repetitive tasks ·
