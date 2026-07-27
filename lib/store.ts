@@ -30,6 +30,8 @@ import type {
   Exercise,
   WorkoutRow,
   NutritionPlan,
+  NutritionLog,
+  CoachNote,
   ProgressPoint,
   Message,
   WeeklyPriority,
@@ -45,6 +47,8 @@ const salesRaw = cache(() => notion.getSales());
 const contentRaw = cache(() => notion.getContent());
 const metricsRaw = cache(() => notion.getMetrics());
 const workoutsRaw = cache(() => notion.getWorkouts());
+const nutritionRaw = cache(() => notion.getNutrition());
+const coachNotesRaw = cache(() => notion.getCoachNotes());
 
 function activePhase(programs: Program[], clientId: string): ProgramPhase | undefined {
   const p =
@@ -190,6 +194,26 @@ export async function salesForClient(clientId: string): Promise<Sale[]> {
   return all
     .filter((s) => s.clientId === clientId)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+/**
+ * Notion-backed weekly nutrition logs for a client (newest first). Empty until
+ * rows exist — the Nutrition module then shows a clean empty state. Distinct
+ * from the sample-only `nutritionForClient` used by the prototype portal.
+ */
+export async function nutritionLogsForClient(clientId: string): Promise<NutritionLog[]> {
+  const all = await nutritionRaw();
+  return all
+    .filter((n) => n.clientId === clientId)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+/** Coach notes + AI recommendations for a client (newest first), from Notion. */
+export async function coachNotesForClient(clientId: string): Promise<CoachNote[]> {
+  const all = await coachNotesRaw();
+  return all
+    .filter((n) => n.clientId === clientId)
+    .sort((a, b) => (a.created < b.created ? 1 : -1));
 }
 
 /* ------------------------------------------------------------------ */

@@ -42,6 +42,9 @@ import type {
   ContentStatus,
   Metric,
   WorkoutRow,
+  BillingStatus,
+  NutritionLog,
+  CoachNote,
 } from "./types";
 
 /** Data source IDs from the live SL Strength OS Notion workspace. */
@@ -54,6 +57,8 @@ export const NOTION_DATA_SOURCES = {
   content: "7b9428d8-9f4f-48c8-95d6-9a95bef9fc1f",
   metrics: "b456da35-4b5d-4870-a802-5c699d350855",
   workouts: "7f5e8a76-c1f1-4f66-856b-122ea2e9904c",
+  nutrition: "7fef8dfe-692d-4e5f-af53-b592f1d0a672",
+  coachNotes: "6ec70405-6d57-4abf-ab6b-7131aa403a48",
 } as const;
 
 /** True once NOTION_API_KEY is configured. */
@@ -104,6 +109,7 @@ const email = (p: Prop): string => p?.email ?? "";
 const phone = (p: Prop): string => p?.phone_number ?? "";
 const url = (p: Prop): string => p?.url ?? "";
 const checkbox = (p: Prop): boolean => Boolean(p?.checkbox);
+const createdTime = (p: Prop): string => p?.created_time ?? "";
 const relationIds = (p: Prop): string[] => ((p?.relation ?? []) as Prop[]).map((r) => r.id);
 
 function initials(name: string): string {
@@ -141,6 +147,44 @@ function mapClient(page: Prop): Client {
     compliance: Math.round(number(p["Avg Compliance %"]) ?? 0),
     lastCheckIn: dateStr(p["Last Check-In"]) ?? dateStr(p["Start Date"]) ?? "",
     lifetimeRevenue: number(p["Lifetime Revenue"]) ?? 0,
+    billingStatus: (select(p["Billing Status"]) as BillingStatus) ?? undefined,
+    plan: select(p["Plan"]) ?? undefined,
+    nextPaymentDate: dateStr(p["Next Payment Date"]) ?? undefined,
+    avgNutritionCompliance: number(p["Avg Nutrition Compliance"]) ?? undefined,
+    lastNutritionLog: dateStr(p["Last Nutrition Log"]) ?? undefined,
+  };
+}
+
+function mapNutrition(page: Prop): NutritionLog {
+  const p: Props = page.properties;
+  return {
+    id: page.id,
+    notionId: page.id,
+    clientId: relationIds(p["Client"])[0] ?? "",
+    date: dateStr(p["Date"]) ?? "",
+    strategy: text(p["Strategy"]),
+    targetCalories: number(p["Target Calories"]) ?? 0,
+    protein: number(p["Protein (g)"]) ?? 0,
+    carbs: number(p["Carbs (g)"]) ?? 0,
+    fat: number(p["Fat (g)"]) ?? 0,
+    caloriesActual: number(p["Calories Actual"]) ?? 0,
+    compliance: number(p["Compliance %"]) ?? 0,
+    notes: text(p["Notes"]) || undefined,
+  };
+}
+
+function mapCoachNote(page: Prop): CoachNote {
+  const p: Props = page.properties;
+  return {
+    id: page.id,
+    notionId: page.id,
+    clientId: relationIds(p["Client"])[0] ?? "",
+    created: dateStr(p["Created"]) || createdTime(p["Created"]) || page.created_time || "",
+    author: text(p["Author"]),
+    type: (select(p["Type"]) as CoachNote["type"]) ?? "Note",
+    body: text(p["Body"]),
+    status: (select(p["Status"]) as CoachNote["status"]) ?? "New",
+    priority: (select(p["Priority"]) as CoachNote["priority"]) ?? undefined,
   };
 }
 
@@ -392,6 +436,29 @@ export interface ProgramInput {
   name?: string;
 }
 
+export interface NutritionInput {
+  clientId: string;
+  clientName?: string;
+  date?: string;
+  strategy?: string;
+  targetCalories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  caloriesActual?: number;
+  compliance?: number;
+  notes?: string;
+}
+
+export interface CoachNoteInput {
+  clientId: string;
+  body: string;
+  author?: string;
+  type?: CoachNote["type"];
+  status?: CoachNote["status"];
+  priority?: CoachNote["priority"];
+}
+
 /* ---- 1. Check-in submission -------------------------------------- */
 
 async function createCheckIn(input: CheckInInput): Promise<CheckIn> {
@@ -572,6 +639,79 @@ async function createProgram(input: ProgramInput): Promise<Program> {
   }
 }
 
+/* ---- 5. Nutrition log -------------------------------------------- */
+
+async function createNutritionLog(input: NutritionInput): Promise<NutritionLog> {
+  announce();
+  const date = input.date ?? today();
+  const record: NutritionLog = {
+    id: localId("nu"),
+    clientId: input.clientId,
+    date,
+    strategy: input.strategy ?? "",
+    targetCalories: input.targetCalories ?? 0,
+    protein: input.protein ?? 0,
+    carbs: input.carbs ?? 0,
+    fat: input.fat ?? 0,
+    caloriesActual: input.caloriesActual ?? 0,
+    compliance: input.compliance ?? 0,
+    notes: input.notes,
+  };
+  if (!isLive) return record;
+  try {
+    const props: Record<string, unknown> = {
+      "Nutrition Log": wTitle(`${input.clientName ?? "Nutrition"} — ${date}`),
+      Date: wDate(date),
+      Strategy: wRich(record.strategy),
+      "Target Calories": wNum(record.targetCalories),
+      "Protein (g)": wNum(record.protein),
+      "Carbs (g)": wNum(record.carbs),
+      "Fat (g)": wNum(record.fat),
+      "Calories Actual": wNum(record.caloriesActual),
+      "Compliance %": wNum(record.compliance),
+      Notes: wRich(record.notes),
+    };
+    if (input.clientId) props["Client"] = wRel([input.clientId]);
+    return mapNutrition(await createPage(NOTION_DATA_SOURCES.nutrition, props));
+  } catch (err) {
+    console.warn("[notion] createNutritionLog failed — returning local record:", errMsg(err));
+    return record;
+  }
+}
+
+/* ---- 6. Coach note / AI recommendation --------------------------- */
+
+async function createCoachNote(input: CoachNoteInput): Promise<CoachNote> {
+  announce();
+  const record: CoachNote = {
+    id: localId("cn"),
+    clientId: input.clientId,
+    created: new Date().toISOString(),
+    author: input.author ?? "Shane Lanteigne",
+    type: input.type ?? "Note",
+    body: input.body,
+    status: input.status ?? "New",
+    priority: input.priority,
+  };
+  if (!isLive) return record;
+  try {
+    const title = record.body.length > 60 ? `${record.body.slice(0, 57)}…` : record.body;
+    const props: Record<string, unknown> = {
+      Note: wTitle(title || "Coach note"),
+      Author: wRich(record.author),
+      Type: wSel(record.type),
+      Body: wRich(record.body),
+      Status: wSel(record.status),
+      Priority: wSel(record.priority),
+    };
+    if (input.clientId) props["Client"] = wRel([input.clientId]);
+    return mapCoachNote(await createPage(NOTION_DATA_SOURCES.coachNotes, props));
+  } catch (err) {
+    console.warn("[notion] createCoachNote failed — returning local record:", errMsg(err));
+    return record;
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Public adapter (reads + writes; same shapes, live-capable)          */
 /* ------------------------------------------------------------------ */
@@ -596,10 +736,17 @@ export const notion = {
   // the coach view shows a clean empty state until real rows are entered.
   getWorkouts: (): Promise<WorkoutRow[]> =>
     fetchOrFallback("workouts", NOTION_DATA_SOURCES.workouts, mapWorkout, []),
+  // Nutrition + Coach Notes: new databases, no sample equivalent → empty fallback.
+  getNutrition: (): Promise<NutritionLog[]> =>
+    fetchOrFallback("nutrition", NOTION_DATA_SOURCES.nutrition, mapNutrition, []),
+  getCoachNotes: (): Promise<CoachNote[]> =>
+    fetchOrFallback("coach-notes", NOTION_DATA_SOURCES.coachNotes, mapCoachNote, []),
 
   // Writes
   createCheckIn,
   createLead,
   updateLeadStage,
   createProgram,
+  createNutritionLog,
+  createCoachNote,
 };

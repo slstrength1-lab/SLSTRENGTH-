@@ -31,6 +31,8 @@ const DATA_SOURCES = {
   Content: "7b9428d8-9f4f-48c8-95d6-9a95bef9fc1f",
   "Business Metrics": "b456da35-4b5d-4870-a802-5c699d350855",
   Workouts: "7f5e8a76-c1f1-4f66-856b-122ea2e9904c",
+  Nutrition: "7fef8dfe-692d-4e5f-af53-b592f1d0a672",
+  "Coach Notes": "6ec70405-6d57-4abf-ab6b-7131aa403a48",
 };
 
 function loadEnvLocal(path) {

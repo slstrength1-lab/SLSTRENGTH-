@@ -95,7 +95,16 @@ export interface Client {
   compliance: number; // 0-100, avg compliance
   lastCheckIn: string; // ISO
   lifetimeRevenue: number;
+  /** Recurring billing (Client Command Center). Optional — set in Notion. */
+  billingStatus?: BillingStatus;
+  plan?: string;
+  nextPaymentDate?: string; // ISO
+  /** Nutrition rollups (Notion computes these from the Nutrition log). */
+  avgNutritionCompliance?: number; // 0-100
+  lastNutritionLog?: string; // ISO
 }
+
+export type BillingStatus = "Active" | "Past Due" | "Cancelled" | "Trial";
 
 export interface Lead {
   id: ID;
@@ -264,6 +273,41 @@ export interface NutritionPlan {
   waterTargetLiters: number;
   waterConsumedLiters: number;
   weekAdherence: number[]; // last 7 days adherence %, 0-100
+}
+
+/**
+ * One row of the Notion Nutrition database (weekly log grain). Backs the
+ * Client Command Center's Nutrition module and HPOS nutrition analysis.
+ */
+export interface NutritionLog {
+  id: ID;
+  notionId?: string;
+  clientId: ID;
+  date: string; // ISO — week the log covers
+  strategy: string;
+  targetCalories: number;
+  protein: number; // g
+  carbs: number; // g
+  fat: number; // g
+  caloriesActual: number;
+  compliance: number; // 0-100
+  notes?: string;
+}
+
+/**
+ * One row of the Notion Coach Notes database. Backs the coach-notes panel and
+ * is the write target for the future HPOS AI layer (Type = "AI Recommendation").
+ */
+export interface CoachNote {
+  id: ID;
+  notionId?: string;
+  clientId: ID;
+  created: string; // ISO
+  author: string;
+  type: "Note" | "AI Recommendation";
+  body: string;
+  status: "New" | "Actioned" | "Dismissed";
+  priority?: "Low" | "Medium" | "High";
 }
 
 /* ------------------------------------------------------------------ */
