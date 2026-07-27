@@ -24,6 +24,7 @@ import {
   programsForClient,
   checkInsForClient,
   salesForClient,
+  nutritionLogsForClient,
 } from "@/lib/store";
 import {
   Card,
@@ -37,6 +38,7 @@ import {
 } from "@/components/primitives";
 import { LineChart } from "@/components/LineChart";
 import { ProgramStructure } from "@/components/ProgramStructure";
+import { NutritionModule } from "@/components/NutritionModule";
 import { CoachNotes } from "@/components/CoachNotes";
 import {
   currency,
@@ -75,10 +77,11 @@ export default async function ClientDetailPage({
   const client = await getClientById(id);
   if (!client) notFound();
 
-  const [programs, checkins, sales] = await Promise.all([
+  const [programs, checkins, sales, nutrition] = await Promise.all([
     programsForClient(id),
     checkInsForClient(id),
     salesForClient(id),
+    nutritionLogsForClient(id),
   ]);
 
   const activeProgram = programs.find((p) => p.status === "Active") ?? programs[0];
@@ -453,24 +456,22 @@ export default async function ClientDetailPage({
             />
           </Card>
 
-          {/* Nutrition */}
+          {/* Nutrition (live from the Notion Nutrition database) */}
           <Card className="p-5">
-            <SectionTitle>
+            <SectionTitle
+              right={
+                nutrition.length ? (
+                  <span className="text-xs text-zinc-500">
+                    {nutrition.length} log{nutrition.length === 1 ? "" : "s"}
+                  </span>
+                ) : undefined
+              }
+            >
               <span className="flex items-center gap-2">
                 <Utensils className="h-4 w-4 text-blood-500" /> Nutrition
               </span>
             </SectionTitle>
-            <EmptyState
-              title="No nutrition data"
-              hint="Macros aren't tracked in Notion yet."
-            />
-            <FieldGap
-              title="To enable nutrition"
-              fields={[
-                "Add a Nutrition database (or fields on Clients): Calories, Protein, Carbs, Fat, Compliance.",
-                "Relate it to Clients, then wire a nutritionForClient adapter read — this section will fill in automatically.",
-              ]}
-            />
+            <NutritionModule logs={nutrition} />
           </Card>
 
           {/* Billing (live from Sales) */}
