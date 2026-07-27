@@ -295,8 +295,24 @@ export interface NutritionLog {
 }
 
 /**
- * One row of the Notion Coach Notes database. Backs the coach-notes panel and
- * is the write target for the future HPOS AI layer (Type = "AI Recommendation").
+ * Coach Notes classification unions (match the Notion select options).
+ * `AI Recommendation` is where a future AI layer writes its output — the same
+ * database, the same shape a coach reads.
+ */
+export type NoteType =
+  | "Coaching Note"
+  | "Programming Decision"
+  | "Nutrition Decision"
+  | "Athlete Concern"
+  | "Follow-up"
+  | "AI Recommendation";
+export type NoteStatus = "New" | "In Progress" | "Actioned" | "Archived";
+export type NotePriority = "Low" | "Medium" | "High";
+
+/**
+ * One row of the Notion Coach Notes database — the client's running coaching
+ * log. Structured (type/status/priority/body/date/author) so a future AI agent
+ * can read history and write recommendations back as notes.
  */
 export interface CoachNote {
   id: ID;
@@ -304,10 +320,10 @@ export interface CoachNote {
   clientId: ID;
   created: string; // ISO
   author: string;
-  type: "Note" | "AI Recommendation";
+  type: NoteType;
   body: string;
-  status: "New" | "Actioned" | "Dismissed";
-  priority?: "Low" | "Medium" | "High";
+  status: NoteStatus;
+  priority?: NotePriority;
 }
 
 /* ------------------------------------------------------------------ */

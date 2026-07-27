@@ -181,7 +181,7 @@ function mapCoachNote(page: Prop): CoachNote {
     clientId: relationIds(p["Client"])[0] ?? "",
     created: dateStr(p["Created"]) || createdTime(p["Created"]) || page.created_time || "",
     author: text(p["Author"]),
-    type: (select(p["Type"]) as CoachNote["type"]) ?? "Note",
+    type: (select(p["Type"]) as CoachNote["type"]) ?? "Coaching Note",
     body: text(p["Body"]),
     status: (select(p["Status"]) as CoachNote["status"]) ?? "New",
     priority: (select(p["Priority"]) as CoachNote["priority"]) ?? undefined,
@@ -688,7 +688,7 @@ async function createCoachNote(input: CoachNoteInput): Promise<CoachNote> {
     clientId: input.clientId,
     created: new Date().toISOString(),
     author: input.author ?? "Shane Lanteigne",
-    type: input.type ?? "Note",
+    type: input.type ?? "Coaching Note",
     body: input.body,
     status: input.status ?? "New",
     priority: input.priority,
@@ -710,6 +710,47 @@ async function createCoachNote(input: CoachNoteInput): Promise<CoachNote> {
     console.warn("[notion] createCoachNote failed — returning local record:", errMsg(err));
     return record;
   }
+}
+
+export interface CoachNotePatch {
+  status?: CoachNote["status"];
+  type?: CoachNote["type"];
+  priority?: CoachNote["priority"];
+  body?: string;
+}
+
+/**
+ * Update a coach note in place (status change, edit, or archive). "Archive" is
+ * a soft status change (Status = "Archived") so the coaching history is
+ * preserved for future AI reads — nothing is destroyed.
+ */
+async function updateCoachNote(id: string, patch: CoachNotePatch): Promise<CoachNote> {
+  announce();
+  if (!isLive) {
+    // No sample store for notes; echo an updated record so optimistic UI works.
+    return {
+      id,
+      clientId: "",
+      created: new Date().toISOString(),
+      author: "Shane Lanteigne",
+      type: patch.type ?? "Coaching Note",
+      body: patch.body ?? "",
+      status: patch.status ?? "New",
+      priority: patch.priority,
+    };
+  }
+  const props: Record<string, unknown> = {};
+  if (patch.status !== undefined) props["Status"] = wSel(patch.status);
+  if (patch.type !== undefined) props["Type"] = wSel(patch.type);
+  if (patch.priority !== undefined) props["Priority"] = wSel(patch.priority);
+  if (patch.body !== undefined) {
+    const title = patch.body.length > 60 ? `${patch.body.slice(0, 57)}…` : patch.body;
+    props["Body"] = wRich(patch.body);
+    props["Note"] = wTitle(title || "Coach note");
+  }
+  const client = getClient();
+  await client.pages.update({ page_id: id, properties: props } as Prop);
+  return mapCoachNote(await client.pages.retrieve({ page_id: id } as Prop));
 }
 
 /* ------------------------------------------------------------------ */
@@ -749,4 +790,5 @@ export const notion = {
   createProgram,
   createNutritionLog,
   createCoachNote,
+  updateCoachNote,
 };

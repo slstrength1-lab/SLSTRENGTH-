@@ -25,6 +25,7 @@ import {
   checkInsForClient,
   salesForClient,
   nutritionLogsForClient,
+  coachNotesForClient,
 } from "@/lib/store";
 import {
   Card,
@@ -77,11 +78,12 @@ export default async function ClientDetailPage({
   const client = await getClientById(id);
   if (!client) notFound();
 
-  const [programs, checkins, sales, nutrition] = await Promise.all([
+  const [programs, checkins, sales, nutrition, coachNotes] = await Promise.all([
     programsForClient(id),
     checkInsForClient(id),
     salesForClient(id),
     nutritionLogsForClient(id),
+    coachNotesForClient(id),
   ]);
 
   const activeProgram = programs.find((p) => p.status === "Active") ?? programs[0];
@@ -510,7 +512,11 @@ export default async function ClientDetailPage({
                 <NotebookPen className="h-4 w-4 text-blood-500" /> Coach notes
               </span>
             </SectionTitle>
-            <CoachNotes author="Shane Lanteigne" />
+            <CoachNotes
+              clientId={client.id}
+              author="Shane Lanteigne"
+              initialNotes={coachNotes}
+            />
           </Card>
         </div>
       </div>
