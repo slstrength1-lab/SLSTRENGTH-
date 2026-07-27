@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "verify:notion": "node scripts/verify-notion.mjs"
+    "verify:notion": "node scripts/verify-notion.mjs",
+    "load:program": "tsx scripts/load-program-template.ts"
   },
   "dependencies": {
     "@notionhq/client": "^5.23.2",
@@ -24,6 +25,7 @@
     "autoprefixer": "10.4.20",
     "postcss": "8.4.47",
     "tailwindcss": "3.4.14",
+    "tsx": "^4.23.1",
     "typescript": "5.6.3"
   }
 }
