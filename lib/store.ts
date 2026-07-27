@@ -32,6 +32,7 @@ import type {
   NutritionPlan,
   NutritionLog,
   CoachNote,
+  BusinessSummary,
   ProgressPoint,
   Message,
   WeeklyPriority,
@@ -194,6 +195,82 @@ export async function salesForClient(clientId: string): Promise<Sale[]> {
   return all
     .filter((s) => s.clientId === clientId)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+/* ------------------------------------------------------------------ */
+/* Business analytics (per-client) — computed live from Sales + Client */
+/* ------------------------------------------------------------------ */
+
+function monthKey(iso: string): string {
+  return iso.slice(0, 7); // YYYY-MM
+}
+function monthsBetween(fromISO: string, toISO: string): number {
+  if (!fromISO || !toISO) return 0;
+  const a = new Date(fromISO + (fromISO.length === 10 ? "T00:00:00" : ""));
+  const b = new Date(toISO + (toISO.length === 10 ? "T00:00:00" : ""));
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return 0;
+  let m = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  if (b.getDate() < a.getDate()) m -= 1;
+  return Math.max(0, m);
+}
+
+/**
+ * Compute the per-client Business summary from that client's Sales rows and
+ * Client fields. Pure — no fetching, no fabrication. Only Paid sales count
+ * toward revenue. `nowISO` defaults to the current date; pass one for tests.
+ */
+export function summarizeBusiness(
+  client: Client,
+  sales: Sale[],
+  nowISO: string = new Date().toISOString().slice(0, 10),
+): BusinessSummary {
+  const paid = sales.filter((s) => s.paymentStatus === "Paid");
+  const lifetimeRevenue = paid.reduce((sum, s) => sum + s.amount, 0);
+  const payments = paid.length;
+  const lastPayment = paid.reduce((latest, s) => (s.date > latest ? s.date : latest), "");
+
+  const endRef = client.cancelledDate || nowISO;
+  const retentionMonths = client.startDate ? monthsBetween(client.startDate, endRef) : 0;
+  const clientAgeMonths = client.startDate ? monthsBetween(client.startDate, nowISO) : 0;
+  const avgMonthlyValue = retentionMonths > 0 ? lifetimeRevenue / retentionMonths : lifetimeRevenue;
+
+  const thisKey = monthKey(nowISO);
+  const lastDate = new Date(nowISO + "T00:00:00");
+  lastDate.setMonth(lastDate.getMonth() - 1);
+  const lastKey = lastDate.toISOString().slice(0, 7);
+  const revenueThisMonth = paid.filter((s) => monthKey(s.date) === thisKey).reduce((n, s) => n + s.amount, 0);
+  const revenueLastMonth = paid.filter((s) => monthKey(s.date) === lastKey).reduce((n, s) => n + s.amount, 0);
+  const revenueGrowth = revenueLastMonth > 0 ? (revenueThisMonth - revenueLastMonth) / revenueLastMonth : null;
+
+  // Last 6 calendar months of Paid revenue (oldest → newest).
+  const monthlyTrend: { month: string; amount: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(nowISO + "T00:00:00");
+    d.setMonth(d.getMonth() - i);
+    const key = d.toISOString().slice(0, 7);
+    const amount = paid.filter((s) => monthKey(s.date) === key).reduce((n, s) => n + s.amount, 0);
+    monthlyTrend.push({ month: d.toLocaleDateString("en-US", { month: "short" }), amount });
+  }
+
+  const tenureScore = Math.min(retentionMonths / 12, 1);
+  const revenueScore = client.monthlyRate > 0 ? Math.min(lifetimeRevenue / (client.monthlyRate * 12), 1) : 0;
+  const complianceScore = (client.compliance ?? 0) / 100;
+  const valueScore = Math.round(100 * (0.4 * tenureScore + 0.4 * revenueScore + 0.2 * complianceScore));
+
+  return {
+    lifetimeRevenue,
+    monthlyRevenue: client.monthlyRate,
+    payments,
+    avgMonthlyValue: Math.round(avgMonthlyValue),
+    lastPayment,
+    revenueThisMonth,
+    revenueLastMonth,
+    revenueGrowth,
+    monthlyTrend,
+    retentionMonths,
+    clientAgeMonths,
+    valueScore,
+  };
 }
 
 /**

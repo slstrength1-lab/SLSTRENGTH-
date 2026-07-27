@@ -99,12 +99,33 @@ export interface Client {
   billingStatus?: BillingStatus;
   plan?: string;
   nextPaymentDate?: string; // ISO
+  cancelledDate?: string; // ISO — set when membership is cancelled (churn/retention)
   /** Nutrition rollups (Notion computes these from the Nutrition log). */
   avgNutritionCompliance?: number; // 0-100
   lastNutritionLog?: string; // ISO
 }
 
-export type BillingStatus = "Active" | "Past Due" | "Cancelled" | "Trial";
+export type BillingStatus = "Active" | "Past Due" | "Paused" | "Cancelled" | "Trial";
+
+/**
+ * Per-client business metrics for the Command Center Business module. All
+ * fields are computed live from the client's Sales rows + Client fields
+ * (see store.summarizeBusiness) — nothing is stored or fabricated.
+ */
+export interface BusinessSummary {
+  lifetimeRevenue: number;
+  monthlyRevenue: number; // contracted (Monthly Rate)
+  payments: number; // count of Paid sales
+  avgMonthlyValue: number;
+  lastPayment: string; // ISO or ""
+  revenueThisMonth: number;
+  revenueLastMonth: number;
+  revenueGrowth: number | null; // fraction (0.1 = +10%); null when no last-month base
+  monthlyTrend: { month: string; amount: number }[];
+  retentionMonths: number;
+  clientAgeMonths: number;
+  valueScore: number; // 0-100
+}
 
 export interface Lead {
   id: ID;

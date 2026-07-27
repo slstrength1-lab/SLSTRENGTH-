@@ -150,6 +150,7 @@ function mapClient(page: Prop): Client {
     billingStatus: (select(p["Billing Status"]) as BillingStatus) ?? undefined,
     plan: select(p["Plan"]) ?? undefined,
     nextPaymentDate: dateStr(p["Next Payment Date"]) ?? undefined,
+    cancelledDate: dateStr(p["Cancelled Date"]) ?? undefined,
     avgNutritionCompliance: number(p["Avg Nutrition Compliance"]) ?? undefined,
     lastNutritionLog: dateStr(p["Last Nutrition Log"]) ?? undefined,
   };
@@ -753,6 +754,91 @@ async function updateCoachNote(id: string, patch: CoachNotePatch): Promise<Coach
   return mapCoachNote(await client.pages.retrieve({ page_id: id } as Prop));
 }
 
+/* ---- 7. Log payment (Sales) -------------------------------------- */
+
+export interface SaleInput {
+  clientId: string;
+  amount: number;
+  date?: string;
+  package?: string;
+  paymentType?: PaymentType;
+  paymentStatus?: PaymentStatus;
+  title?: string;
+}
+
+async function createSale(input: SaleInput): Promise<Sale> {
+  announce();
+  const date = input.date ?? today();
+  const record: Sale = {
+    id: localId("sl"),
+    title: input.title ?? `${input.package || "Payment"} — ${date}`,
+    clientId: input.clientId,
+    amount: input.amount,
+    date,
+    package: input.package ?? "",
+    paymentType: input.paymentType ?? "Monthly",
+    paymentStatus: input.paymentStatus ?? "Paid",
+  };
+  if (!isLive) return sampleInsert(sample.sales, record);
+  try {
+    const props: Record<string, unknown> = {
+      Sale: wTitle(record.title),
+      Amount: wNum(record.amount),
+      Date: wDate(date),
+      Package: wSel(record.package || undefined),
+      "Payment Type": wSel(record.paymentType),
+      "Payment Status": wSel(record.paymentStatus),
+    };
+    if (input.clientId) props["Client"] = wRel([input.clientId]);
+    return mapSale(await createPage(NOTION_DATA_SOURCES.sales, props));
+  } catch (err) {
+    console.warn("[notion] createSale failed — writing to sample memory:", errMsg(err));
+    return sampleInsert(sample.sales, record);
+  }
+}
+
+/* ---- 8. Update client billing / plan / status -------------------- */
+
+export interface ClientPatch {
+  billingStatus?: BillingStatus;
+  plan?: string;
+  monthlyRate?: number;
+  status?: ClientStatus;
+  nextPaymentDate?: string;
+  cancelledDate?: string;
+}
+
+async function updateClient(id: string, patch: ClientPatch): Promise<Client> {
+  announce();
+  const sampleUpdate = (): Client => {
+    const c = sample.clients.find((x) => x.id === id);
+    if (!c) throw new Error(`Client ${id} not found in sample memory`);
+    if (patch.billingStatus !== undefined) c.billingStatus = patch.billingStatus;
+    if (patch.plan !== undefined) c.plan = patch.plan;
+    if (patch.monthlyRate !== undefined) c.monthlyRate = patch.monthlyRate;
+    if (patch.status !== undefined) c.status = patch.status;
+    if (patch.nextPaymentDate !== undefined) c.nextPaymentDate = patch.nextPaymentDate;
+    if (patch.cancelledDate !== undefined) c.cancelledDate = patch.cancelledDate;
+    return c;
+  };
+  if (!isLive) return sampleUpdate();
+  try {
+    const props: Record<string, unknown> = {};
+    if (patch.billingStatus !== undefined) props["Billing Status"] = wSel(patch.billingStatus);
+    if (patch.plan !== undefined) props["Plan"] = wSel(patch.plan);
+    if (patch.monthlyRate !== undefined) props["Monthly Rate"] = wNum(patch.monthlyRate);
+    if (patch.status !== undefined) props["Status"] = wSel(patch.status);
+    if (patch.nextPaymentDate !== undefined) props["Next Payment Date"] = wDate(patch.nextPaymentDate);
+    if (patch.cancelledDate !== undefined) props["Cancelled Date"] = wDate(patch.cancelledDate);
+    const client = getClient();
+    await client.pages.update({ page_id: id, properties: props } as Prop);
+    return mapClient(await client.pages.retrieve({ page_id: id } as Prop));
+  } catch (err) {
+    console.warn("[notion] updateClient failed — updating sample memory:", errMsg(err));
+    return sampleUpdate();
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Public adapter (reads + writes; same shapes, live-capable)          */
 /* ------------------------------------------------------------------ */
@@ -791,4 +877,6 @@ export const notion = {
   createNutritionLog,
   createCoachNote,
   updateCoachNote,
+  createSale,
+  updateClient,
 };

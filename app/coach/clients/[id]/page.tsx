@@ -26,6 +26,7 @@ import {
   salesForClient,
   nutritionLogsForClient,
   coachNotesForClient,
+  summarizeBusiness,
 } from "@/lib/store";
 import {
   Card,
@@ -40,6 +41,8 @@ import {
 import { LineChart } from "@/components/LineChart";
 import { ProgramStructure } from "@/components/ProgramStructure";
 import { NutritionModule } from "@/components/NutritionModule";
+import { BusinessModule } from "@/components/BusinessModule";
+import { BusinessActions } from "@/components/BusinessActions";
 import { CoachNotes } from "@/components/CoachNotes";
 import {
   currency,
@@ -86,6 +89,7 @@ export default async function ClientDetailPage({
     coachNotesForClient(id),
   ]);
 
+  const business = summarizeBusiness(client, sales);
   const activeProgram = programs.find((p) => p.status === "Active") ?? programs[0];
   const latest = checkins[0];
   const previous = checkins[1];
@@ -476,35 +480,6 @@ export default async function ClientDetailPage({
             <NutritionModule logs={nutrition} />
           </Card>
 
-          {/* Billing (live from Sales) */}
-          <Card className="p-5">
-            <SectionTitle right={<span className="text-xs text-zinc-500">{sales.length}</span>}>
-              <span className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-blood-500" /> Billing
-              </span>
-            </SectionTitle>
-            {sales.length ? (
-              <ul className="space-y-1.5">
-                {sales.slice(0, 6).map((s) => (
-                  <li
-                    key={s.id}
-                    className="flex items-center justify-between rounded-lg bg-ink-900/60 px-3 py-2 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-zinc-300">{s.package || s.title}</div>
-                      <div className="text-xs text-zinc-600">
-                        {s.date ? shortDate(s.date) : "—"} · {s.paymentType}
-                      </div>
-                    </div>
-                    <span className="shrink-0 font-medium text-zinc-200">{currency(s.amount)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyState title="No payments recorded" hint="Sales linked to this client appear here." />
-            )}
-          </Card>
-
           {/* Coach notes */}
           <Card className="p-5">
             <SectionTitle>
@@ -520,6 +495,17 @@ export default async function ClientDetailPage({
           </Card>
         </div>
       </div>
+
+      {/* Business & Billing (full-width, live from Sales + Client) */}
+      <Card className="p-5">
+        <SectionTitle right={<span className="text-xs text-zinc-500">{sales.length} payments</span>}>
+          <span className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-blood-500" /> Business &amp; Billing
+          </span>
+        </SectionTitle>
+        <BusinessModule client={client} summary={business} sales={sales} />
+        <BusinessActions clientId={client.id} monthlyRate={client.monthlyRate} plan={client.plan} />
+      </Card>
     </div>
   );
 }
