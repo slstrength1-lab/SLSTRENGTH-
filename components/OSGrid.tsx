@@ -12,7 +12,9 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import type { OwnerSummary, ContentItem, ActivityItem, ActivityType } from "@/lib/types";
+import type { LeadSummary } from "@/lib/analytics/leads";
 import { Card, SectionTitle, Pill, EmptyState } from "./primitives";
+import { CRMCard } from "./CRMCard";
 import { shortDate, relativeDate } from "@/lib/format";
 
 /**
@@ -138,24 +140,28 @@ function OperationsCard({ summary: s }: { summary: OwnerSummary }) {
   );
 }
 
-export function OSGrid({ summary, content }: { summary: OwnerSummary; content: ContentItem[] }) {
+export function OSGrid({
+  summary,
+  content,
+  leads,
+}: {
+  summary: OwnerSummary;
+  content: ContentItem[];
+  leads: LeadSummary;
+}) {
   return (
     <div>
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
         <LayoutGrid className="h-4 w-4 text-blood-500" /> Business Operating System
       </h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <CRMCard leads={leads} />
         <ContentCard items={content} />
         <OperationsCard summary={summary} />
         <Stub
           title="AI Business Advisor"
           icon={<Bot className="h-4 w-4 text-blood-500" />}
           examples={["Revenue is down 8% vs last month", "3 clients at risk of churn", "Highest-value client hasn't checked in"]}
-        />
-        <Stub
-          title="CRM"
-          icon={<Users2 className="h-4 w-4 text-blood-500" />}
-          examples={["Lead scoring & stages", "Follow-up sequences", "Consultation booking"]}
         />
         <Stub
           title="Marketing"

@@ -23,6 +23,7 @@ export default async function CoachPage() {
   const data = await getOwnerData();
   const summary = summarizeOwner(data, getOwnerConfig(), today);
   const upcomingContent = analytics.content.upcomingContent(data);
+  const leadSummary = analytics.leads.summarizeLeads(data.leads, today);
 
   const openLeads = data.leads.filter((l) => l.stage !== "Closed Won" && l.stage !== "Nurture");
   const pipelineValue = openLeads.reduce((s, l) => s + l.estValue, 0);
@@ -73,7 +74,7 @@ export default async function CoachPage() {
       </Card>
 
       {/* 8 — Business Operating System (live + plug-in placeholders) */}
-      <OSGrid summary={summary} content={upcomingContent} />
+      <OSGrid summary={summary} content={upcomingContent} leads={leadSummary} />
     </div>
   );
 }
