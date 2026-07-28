@@ -127,6 +127,113 @@ export interface BusinessSummary {
   valueScore: number; // 0-100
 }
 
+/**
+ * Owner (CEO) Dashboard — portfolio-wide business summary. Every field is
+ * computed live by store.summarizePortfolio() from the existing databases
+ * (Clients, Sales, Programs, Check-ins, Workouts, Coach Notes, Nutrition, Leads)
+ * plus the owner's config targets. Nothing here is stored or fabricated.
+ */
+export interface OwnerSummary {
+  /* Revenue */
+  mrr: number;
+  arr: number;
+  monthlyRevenue: number; // Paid sales, current month
+  revenueLastMonth: number;
+  revenueGrowth: number | null; // fraction; null when no last-month base
+  revenueGoal: number;
+  revenueRemaining: number;
+  goalProgress: number; // 0-100
+  revenueTrend: { month: string; amount: number }[]; // last 6 months, Paid
+  /* Clients */
+  activeClients: number;
+  newClientsThisMonth: number;
+  clientCapacity: number;
+  capacityFill: number; // 0-100
+  pausedClients: number;
+  pastDueClients: number;
+  cancelledClients: number;
+  avgClientValue: number; // MRR / active
+  avgClientLifetimeMonths: number;
+  churnRate: number | null; // fraction of active lost this month
+  clientGrowthTrend: { month: string; count: number }[]; // active count, last 6 months
+  /* Health */
+  portfolioCompliance: number; // 0-100, avg check-in compliance of active
+  workoutCompletion: number | null; // 0-100, null until Workout rows exist
+  nutritionCompliance: number | null; // 0-100, null until Nutrition logs exist
+  topClients: TopClient[];
+  recentPayments: Sale[];
+  upcomingPayments: UpcomingPayment[];
+  /* Operations */
+  programsActive: number;
+  programsEnding: number;
+  pendingNotes: number;
+  openAiRecs: number;
+  nutritionPlans: number;
+  completedCheckIns: number; // Reviewed, current month
+  activity: ActivityItem[];
+  /* Priorities + calendar */
+  priorities: PriorityGroup[];
+  calendar: CalendarEvent[];
+}
+
+export interface TopClient {
+  id: ID;
+  name: string;
+  initials: string;
+  lifetimeRevenue: number;
+  monthlyRate: number;
+}
+
+export interface UpcomingPayment {
+  clientId: ID;
+  name: string;
+  initials: string;
+  date: string; // ISO
+  amount: number;
+}
+
+export type PriorityTone = "red" | "amber" | "sky" | "emerald";
+
+export interface PriorityItem {
+  clientId: ID;
+  name: string;
+  initials: string;
+  detail: string;
+}
+
+export interface PriorityGroup {
+  key: string;
+  label: string;
+  tone: PriorityTone;
+  items: PriorityItem[];
+}
+
+export type CalendarEventType =
+  | "Check-in"
+  | "Consultation"
+  | "Payment"
+  | "Renewal"
+  | "Program Start"
+  | "Program End";
+
+export interface CalendarEvent {
+  date: string; // ISO
+  type: CalendarEventType;
+  label: string; // client / lead name
+  detail?: string;
+}
+
+export type ActivityType = "payment" | "checkin" | "note" | "client";
+
+export interface ActivityItem {
+  id: ID;
+  type: ActivityType;
+  date: string; // ISO
+  title: string;
+  detail?: string;
+  clientId?: ID;
+}
+
 export interface Lead {
   id: ID;
   notionId?: string;
