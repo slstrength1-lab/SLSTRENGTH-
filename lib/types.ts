@@ -158,6 +158,14 @@ export interface OwnerSummary {
   avgClientLifetimeMonths: number;
   churnRate: number | null; // fraction of active lost this month
   clientGrowthTrend: { month: string; count: number }[]; // active count, last 6 months
+  /* Revenue depth (Phase — analytics layer) */
+  clientLifetimeValue: number; // avg lifetime revenue per client who has paid
+  avgRevenuePerClient: number; // ARPC — lifetime revenue / paying clients
+  /* Growth */
+  lostThisMonth: number; // clients cancelled this calendar month
+  conversionRate: number | null; // Leads: Closed Won / total (null when no leads)
+  capacityRemaining: number; // clientCapacity - activeClients (>=0)
+  newLeads: number; // leads created / open this month
   /* Health */
   portfolioCompliance: number; // 0-100, avg check-in compliance of active
   workoutCompletion: number | null; // 0-100, null until Workout rows exist
