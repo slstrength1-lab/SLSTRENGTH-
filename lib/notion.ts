@@ -153,6 +153,7 @@ function mapClient(page: Prop): Client {
     cancelledDate: dateStr(p["Cancelled Date"]) ?? undefined,
     avgNutritionCompliance: number(p["Avg Nutrition Compliance"]) ?? undefined,
     lastNutritionLog: dateStr(p["Last Nutrition Log"]) ?? undefined,
+    birthday: dateStr(p["Birthday"]) ?? undefined,
   };
 }
 

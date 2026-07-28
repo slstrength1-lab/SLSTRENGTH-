@@ -45,6 +45,7 @@ export const clients: Client[] = [
     compliance: 92,
     lastCheckIn: "2026-07-21",
     lifetimeRevenue: 1800,
+    birthday: "1995-08-04",
   },
   {
     id: "cl_sara",

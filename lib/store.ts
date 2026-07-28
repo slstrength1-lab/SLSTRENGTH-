@@ -604,6 +604,19 @@ export function summarizePortfolio(
     }
     if (c.nextPaymentDate) addEvent(c.nextPaymentDate, "Payment", c.name, `${c.monthlyRate}`);
     if (c.renewalDate) addEvent(c.renewalDate, "Renewal", c.name);
+    // Birthday recurs annually — check this year's and next year's occurrence so
+    // a fixed date-of-birth surfaces when it falls inside the window.
+    if (c.birthday && c.birthday.length >= 10) {
+      const mmdd = c.birthday.slice(5, 10);
+      const year = Number(nowISO.slice(0, 4));
+      for (const y of [year, year + 1]) {
+        const occ = `${y}-${mmdd}`;
+        if (withinNextDays(occ, nowISO, config.upcomingDays)) {
+          addEvent(occ, "Birthday", c.name, "🎂 Birthday");
+          break;
+        }
+      }
+    }
   }
   for (const l of leads) {
     if (l.stage === "Call Scheduled" && l.nextFollowUp) addEvent(l.nextFollowUp, "Consultation", l.name, l.nextAction);

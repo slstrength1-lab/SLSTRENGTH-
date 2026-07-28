@@ -5,8 +5,8 @@ import { longDate, relativeDate } from "@/lib/format";
 
 /**
  * Dashboard Calendar — a lean next-N-days agenda assembled from live dates
- * (check-ins due, consultations, payments, renewals, program start/end). Grouped
- * by day. Birthdays are future-ready (need an additive Clients.Birthday field).
+ * (check-ins due, consultations, payments, renewals, program start/end, and
+ * client birthdays from the Clients.Birthday field). Grouped by day.
  */
 const typeStyle: Record<CalendarEventType, string> = {
   "Check-in": "bg-sky-500/15 text-sky-400 ring-sky-500/25",
@@ -15,6 +15,7 @@ const typeStyle: Record<CalendarEventType, string> = {
   Renewal: "bg-amber-500/15 text-amber-400 ring-amber-500/25",
   "Program Start": "bg-blood-500/15 text-blood-400 ring-blood-500/30",
   "Program End": "bg-white/5 text-zinc-400 ring-white/10",
+  Birthday: "bg-pink-500/15 text-pink-400 ring-pink-500/25",
 };
 
 export function DashboardCalendar({ summary }: { summary: OwnerSummary }) {

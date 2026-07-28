@@ -103,6 +103,8 @@ export interface Client {
   /** Nutrition rollups (Notion computes these from the Nutrition log). */
   avgNutritionCompliance?: number; // 0-100
   lastNutritionLog?: string; // ISO
+  /** Date of birth (Clients.Birthday) — powers the dashboard birthday calendar. */
+  birthday?: string; // ISO
 }
 
 export type BillingStatus = "Active" | "Past Due" | "Paused" | "Cancelled" | "Trial";
@@ -214,7 +216,8 @@ export type CalendarEventType =
   | "Payment"
   | "Renewal"
   | "Program Start"
-  | "Program End";
+  | "Program End"
+  | "Birthday";
 
 export interface CalendarEvent {
   date: string; // ISO
