@@ -160,7 +160,25 @@ function mapClient(page: Prop): Client {
     avgNutritionCompliance: number(p["Avg Nutrition Compliance"]) ?? undefined,
     lastNutritionLog: dateStr(p["Last Nutrition Log"]) ?? undefined,
     birthday: dateStr(p["Birthday"]) ?? undefined,
+    // Contact + training rollups already in Notion, surfaced additively (Step 6A).
+    phone: phone(p["Phone"]) || undefined,
+    workoutCompletion: percentRollup(p["Workout Completion %"]),
+    avgRPE: number(p["Avg RPE"]) ?? undefined,
+    lastWorkout: dateStr(p["Last Workout"]) ?? undefined,
+    totalExercisesLogged: number(p["Total Exercises Logged"]) ?? undefined,
+    totalCheckIns: number(p["Total Check-ins"]) ?? undefined,
   };
+}
+
+/**
+ * Read a Notion "percent" rollup (percent_checked / percent_*) as 0-100.
+ * Those rollups return a 0-1 fraction, so a value ≤ 1 is scaled up; a value
+ * already on a 0-100 scale is passed through. Undefined when absent.
+ */
+function percentRollup(p: Prop): number | undefined {
+  const n = number(p);
+  if (typeof n !== "number") return undefined;
+  return Math.round(n <= 1 ? n * 100 : n);
 }
 
 function mapNutrition(page: Prop): NutritionLog {

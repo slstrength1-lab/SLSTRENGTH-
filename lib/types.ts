@@ -106,6 +106,16 @@ export interface Client {
   lastNutritionLog?: string; // ISO
   /** Date of birth (Clients.Birthday) — powers the dashboard birthday calendar. */
   birthday?: string; // ISO
+  /**
+   * Contact + training rollups already present in the Clients Notion database,
+   * surfaced additively (Step 6A). Optional — undefined when blank / no rows yet.
+   */
+  phone?: string;
+  workoutCompletion?: number; // 0-100 (Workout Completion % rollup)
+  avgRPE?: number; // Avg RPE rollup
+  lastWorkout?: string; // ISO (Last Workout rollup)
+  totalExercisesLogged?: number; // Total Exercises Logged rollup
+  totalCheckIns?: number; // Total Check-ins rollup
 }
 
 export type BillingStatus = "Active" | "Past Due" | "Paused" | "Cancelled" | "Trial";
