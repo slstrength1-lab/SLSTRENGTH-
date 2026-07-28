@@ -69,6 +69,11 @@ function probability(lead: Lead): number {
 /* Pipeline value                                                      */
 /* ------------------------------------------------------------------ */
 
+/** Expected revenue for a single lead = estimated value × close probability. */
+export function expectedRevenue(lead: Lead): number {
+  return Math.round((lead.estValue || 0) * probability(lead));
+}
+
 /** Active pipeline leads. */
 export function activeLeads(leads: Lead[]): Lead[] {
   return leads.filter(isActiveLead);

@@ -61,10 +61,12 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 
 export function CoachNotes({
   clientId,
+  leadId,
   author = "Shane Lanteigne",
   initialNotes = [],
 }: {
-  clientId: string;
+  clientId?: string;
+  leadId?: string;
   author?: string;
   initialNotes?: CoachNote[];
 }) {
@@ -84,7 +86,7 @@ export function CoachNotes({
       const res = await fetch("/api/coach-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, author, body, type: draftType, priority: draftPriority }),
+        body: JSON.stringify({ clientId, leadId, author, body, type: draftType, priority: draftPriority }),
       });
       const json = await res.json();
       if (!res.ok || !json.ok) throw new Error(json.error ?? "sync failed");
@@ -256,7 +258,7 @@ export function CoachNotes({
             <NotebookPen className="mb-2 h-5 w-5 text-zinc-600" />
             <p className="text-sm font-medium text-zinc-300">No notes yet</p>
             <p className="mt-1 text-xs text-zinc-500">
-              Your coaching log for this client will appear here.
+              Your coaching log will appear here.
             </p>
           </div>
         )}

@@ -478,7 +478,8 @@ export interface NutritionInput {
 }
 
 export interface CoachNoteInput {
-  clientId: string;
+  clientId?: string;
+  leadId?: string; // attach the note to a Lead instead of (or as well as) a Client
   body: string;
   author?: string;
   type?: CoachNote["type"];
@@ -712,7 +713,8 @@ async function createCoachNote(input: CoachNoteInput): Promise<CoachNote> {
   announce();
   const record: CoachNote = {
     id: localId("cn"),
-    clientId: input.clientId,
+    clientId: input.clientId ?? "",
+    leadId: input.leadId,
     created: new Date().toISOString(),
     author: input.author ?? "Shane Lanteigne",
     type: input.type ?? "Coaching Note",
@@ -732,6 +734,7 @@ async function createCoachNote(input: CoachNoteInput): Promise<CoachNote> {
       Priority: wSel(record.priority),
     };
     if (input.clientId) props["Client"] = wRel([input.clientId]);
+    if (input.leadId) props["Lead"] = wRel([input.leadId]);
     return mapCoachNote(await createPage(NOTION_DATA_SOURCES.coachNotes, props));
   } catch (err) {
     console.warn("[notion] createCoachNote failed — returning local record:", errMsg(err));

@@ -3,12 +3,14 @@ import { notion, isLive } from "@/lib/notion";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/coach-notes?clientId= — list a client's coach notes (newest first).
+// GET /api/coach-notes?clientId=|?leadId= — list coach notes (newest first).
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const clientId = searchParams.get("clientId");
+  const leadId = searchParams.get("leadId");
   let data = await notion.getCoachNotes();
   if (clientId) data = data.filter((n) => n.clientId === clientId);
+  if (leadId) data = data.filter((n) => n.leadId === leadId);
   data.sort((a, b) => (a.created < b.created ? 1 : -1));
   return NextResponse.json({ data });
 }
@@ -19,9 +21,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    if (!body?.clientId || !body?.body?.trim()) {
+    if ((!body?.clientId && !body?.leadId) || !body?.body?.trim()) {
       return NextResponse.json(
-        { ok: false, error: "clientId and body are required" },
+        { ok: false, error: "clientId or leadId, plus body, are required" },
         { status: 400 },
       );
     }

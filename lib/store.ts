@@ -264,6 +264,19 @@ export async function getLeads(): Promise<Lead[]> {
   return leadsRaw();
 }
 
+/** A single lead by id (Lead Command Center). */
+export async function getLeadById(id: string): Promise<Lead | undefined> {
+  return (await leadsRaw()).find((l) => l.id === id);
+}
+
+/** Coach notes attached to a lead (newest first) — reuses the Coach Notes DB. */
+export async function coachNotesForLead(leadId: string): Promise<CoachNote[]> {
+  const all = await coachNotesRaw();
+  return all
+    .filter((n) => n.leadId === leadId)
+    .sort((a, b) => (a.created < b.created ? 1 : -1));
+}
+
 export async function getSales(): Promise<Sale[]> {
   return salesRaw();
 }

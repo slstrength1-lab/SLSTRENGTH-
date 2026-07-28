@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Lead, LeadStage } from "@/lib/types";
 import { currency, shortDate } from "@/lib/format";
 
@@ -31,9 +32,10 @@ export function PipelineBoard({ leads }: { leads: Lead[] }) {
               <div className="mb-2 px-1 text-[11px] text-zinc-600">{currency(value)} in stage</div>
               <div className="space-y-2">
                 {items.map((l) => (
-                  <div
+                  <Link
                     key={l.id}
-                    className="card card-hover cursor-default rounded-xl p-3"
+                    href={`/coach/leads/${l.id}`}
+                    className="card card-hover block rounded-xl p-3 transition-colors hover:border-blood-500/40"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-white">{l.name}</span>
@@ -44,7 +46,7 @@ export function PipelineBoard({ leads }: { leads: Lead[] }) {
                       <span>{l.source}</span>
                       <span>{shortDate(l.nextFollowUp)}</span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
                 {items.length === 0 && (
                   <div className="rounded-xl border border-dashed border-white/[0.08] py-6 text-center text-[11px] text-zinc-600">
