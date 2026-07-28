@@ -5,7 +5,7 @@
 
 import type { Client } from "../types";
 import type { OwnerData, AnalyticsContext } from "./context";
-import { monthKey, monthsBetween, monthKeyOffset, monthLabelOffset } from "./dates";
+import { monthKey, monthsBetween, monthKeyOffset, monthLabelOffset, dayDiff } from "./dates";
 
 export interface ClientCounts {
   active: number;
@@ -104,4 +104,112 @@ export function topClients(data: OwnerData, _ctx: AnalyticsContext, limit = 5): 
       lifetimeRevenue: c.lifetimeRevenue,
       monthlyRate: c.monthlyRate,
     }));
+}
+
+/* ------------------------------------------------------------------ */
+/* Client Health Score (Step 6B)                                       */
+/* ------------------------------------------------------------------ */
+/**
+ * A transparent 0-100 client-health score: engagement + training consistency +
+ * recovery/compliance. Deliberately excludes revenue / lifetime value / business
+ * value — this measures how the client is *doing*, not what they're worth.
+ *
+ * Four factors (Training 40, Check-in 20, Nutrition 20, Risk/Status 20). Missing
+ * data is never fabricated: a factor with no data is marked `available: false`
+ * and dropped from the denominator, so the score is computed only over the
+ * pillars we actually have — and `confidence` reports how much of the 100-point
+ * scale was backed by real data. Every factor exposes points/max/detail so the
+ * number is fully explainable.
+ */
+export type HealthCategory = "Excellent" | "Good" | "Moderate" | "At risk";
+
+export interface HealthFactor {
+  name: string;
+  points: number; // earned
+  max: number; // possible
+  available: boolean; // had underlying data
+  detail: string;
+}
+
+export interface ClientHealthScore {
+  clientId: string;
+  score: number; // 0-100 over available factors
+  category: HealthCategory;
+  confidence: number; // 0-1 = availableMax / 100
+  factors: HealthFactor[];
+}
+
+function trainingFactor(c: Client): HealthFactor {
+  const wc = c.workoutCompletion;
+  if (typeof wc !== "number") {
+    return { name: "Training", points: 0, max: 40, available: false, detail: "No workout data yet" };
+  }
+  const points = wc >= 90 ? 40 : wc >= 75 ? 30 : wc >= 50 ? 20 : 10;
+  const band = wc >= 90 ? "excellent" : wc >= 75 ? "good" : wc >= 50 ? "moderate" : "poor";
+  return { name: "Training", points, max: 40, available: true, detail: `${wc}% workout completion (${band})` };
+}
+
+function checkInFactor(c: Client, nowISO: string): HealthFactor {
+  const days = c.lastCheckIn ? dayDiff(c.lastCheckIn, nowISO) : null;
+  const recency = days === null ? 0 : days <= 7 ? 12 : days <= 14 ? 9 : days <= 21 ? 5 : days <= 35 ? 2 : 0;
+  const total = c.totalCheckIns ?? 0;
+  const volume = total >= 8 ? 8 : total >= 4 ? 6 : total >= 2 ? 4 : total >= 1 ? 2 : 0;
+  const available = Boolean(c.lastCheckIn) || total > 0;
+  const detail = days === null ? "No check-ins on record" : `Last check-in ${days}d ago · ${total} total`;
+  return { name: "Check-in engagement", points: recency + volume, max: 20, available, detail };
+}
+
+function nutritionFactor(c: Client): HealthFactor {
+  const nc = c.avgNutritionCompliance;
+  if (typeof nc !== "number") {
+    return { name: "Nutrition", points: 0, max: 20, available: false, detail: "No nutrition data" };
+  }
+  const clamped = Math.max(0, Math.min(100, nc));
+  return { name: "Nutrition", points: Math.round((20 * clamped) / 100), max: 20, available: true, detail: `${nc}% nutrition compliance` };
+}
+
+function riskFactor(c: Client): HealthFactor {
+  const riskPts = c.riskLevel === "Green" ? 10 : c.riskLevel === "Yellow" ? 5 : 0;
+  const compPts = Math.round((10 * Math.max(0, Math.min(100, c.compliance ?? 0))) / 100);
+  let points = riskPts + compPts;
+  let detail = `${c.riskLevel} risk · ${c.compliance ?? 0}% compliance`;
+  if (c.status === "Churned") {
+    points = 0;
+    detail += " · churned";
+  } else if (c.status === "Paused") {
+    points = Math.round(points * 0.5);
+    detail += " · paused";
+  }
+  return { name: "Risk & status", points, max: 20, available: true, detail };
+}
+
+export function healthCategory(score: number): HealthCategory {
+  return score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 40 ? "Moderate" : "At risk";
+}
+
+/** Transparent 0-100 health score for one client. Pure; pass nowISO for tests. */
+export function clientHealthScore(
+  c: Client,
+  nowISO: string = new Date().toISOString().slice(0, 10),
+): ClientHealthScore {
+  const factors = [trainingFactor(c), checkInFactor(c, nowISO), nutritionFactor(c), riskFactor(c)];
+  const available = factors.filter((f) => f.available);
+  const availableMax = available.reduce((n, f) => n + f.max, 0);
+  const earned = available.reduce((n, f) => n + f.points, 0);
+  const score = availableMax > 0 ? Math.round((100 * earned) / availableMax) : 0;
+  return {
+    clientId: c.id,
+    score,
+    category: healthCategory(score),
+    confidence: Math.round((availableMax / 100) * 100) / 100,
+    factors,
+  };
+}
+
+/** Health scores for a set of clients (same order). */
+export function clientHealthScores(
+  clients: Client[],
+  nowISO: string = new Date().toISOString().slice(0, 10),
+): ClientHealthScore[] {
+  return clients.map((c) => clientHealthScore(c, nowISO));
 }
