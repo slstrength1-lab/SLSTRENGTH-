@@ -3,7 +3,7 @@
  * Pure functions over OwnerData + AnalyticsContext.
  */
 
-import type { Client } from "../types";
+import type { Client, OnboardingStage } from "../types";
 import type { OwnerData, AnalyticsContext } from "./context";
 import { monthKey, monthsBetween, monthKeyOffset, monthLabelOffset, dayDiff } from "./dates";
 
@@ -212,4 +212,62 @@ export function clientHealthScores(
   nowISO: string = new Date().toISOString().slice(0, 10),
 ): ClientHealthScore[] {
   return clients.map((c) => clientHealthScore(c, nowISO));
+}
+
+/* ------------------------------------------------------------------ */
+/* Onboarding lifecycle (Step 6D)                                      */
+/* ------------------------------------------------------------------ */
+/**
+ * Ordered onboarding stages. Pure data — reused by analytics + future UI so the
+ * sequence lives in one place. Matches the Clients."Onboarding Stage" options.
+ */
+export const ONBOARDING_STAGES: OnboardingStage[] = [
+  "Welcome",
+  "Intake",
+  "Program Assigned",
+  "Nutrition Set",
+  "First Check-in",
+  "Onboarded",
+];
+
+export interface OnboardingProgress {
+  stage: OnboardingStage | null; // null = not started
+  step: number; // 1-based; 0 when not started
+  totalSteps: number;
+  percent: number; // 0-100
+  isComplete: boolean;
+  nextStage: OnboardingStage | null; // null when complete
+  started?: string;
+  completed?: string;
+  /** True when this client is in an onboarding phase worth surfacing. */
+  active: boolean;
+}
+
+/**
+ * Derive a client's onboarding progress from its lifecycle fields. Transparent
+ * and pure — no fabrication (an unset stage reads as "not started", next =
+ * Welcome). `active` is the signal a UI uses to decide whether to show it: the
+ * client is status "Onboarding", or has a stage set that isn't yet complete.
+ */
+export function onboardingProgress(c: Client): OnboardingProgress {
+  const totalSteps = ONBOARDING_STAGES.length;
+  const stage = c.onboardingStage ?? null;
+  const completed = c.onboardingCompleted;
+  const idx = stage ? ONBOARDING_STAGES.indexOf(stage) : -1;
+  const step = idx + 1; // 0 when not started
+  const isComplete = stage === "Onboarded" || Boolean(completed);
+  const percent = isComplete ? 100 : Math.round((step / totalSteps) * 100);
+  const nextStage = isComplete ? null : idx + 1 < totalSteps ? ONBOARDING_STAGES[idx + 1] : null;
+  const active = !isComplete && (c.status === "Onboarding" || stage !== null);
+  return {
+    stage,
+    step,
+    totalSteps,
+    percent,
+    isComplete,
+    nextStage,
+    started: c.onboardingStarted,
+    completed,
+    active,
+  };
 }

@@ -167,6 +167,10 @@ function mapClient(page: Prop): Client {
     lastWorkout: dateStr(p["Last Workout"]) ?? undefined,
     totalExercisesLogged: number(p["Total Exercises Logged"]) ?? undefined,
     totalCheckIns: number(p["Total Check-ins"]) ?? undefined,
+    // Onboarding lifecycle (Step 6D) — additive reads.
+    onboardingStage: (select(p["Onboarding Stage"]) as Client["onboardingStage"]) ?? undefined,
+    onboardingStarted: dateStr(p["Onboarding Started"]) ?? undefined,
+    onboardingCompleted: dateStr(p["Onboarding Completed"]) ?? undefined,
   };
 }
 

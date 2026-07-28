@@ -38,9 +38,10 @@ import {
   ProgressBar,
   EmptyState,
 } from "@/components/primitives";
-import { clientHealthScore } from "@/lib/analytics/clients";
+import { clientHealthScore, onboardingProgress } from "@/lib/analytics/clients";
 import { LineChart } from "@/components/LineChart";
 import { ClientIntelligence } from "@/components/ClientIntelligence";
+import { OnboardingCard } from "@/components/OnboardingCard";
 import { ProgramStructure } from "@/components/ProgramStructure";
 import { NutritionModule } from "@/components/NutritionModule";
 import { BusinessModule } from "@/components/BusinessModule";
@@ -93,6 +94,7 @@ export default async function ClientDetailPage({
 
   const business = summarizeBusiness(client, sales);
   const health = clientHealthScore(client);
+  const onboarding = onboardingProgress(client);
   const activeProgram = programs.find((p) => p.status === "Active") ?? programs[0];
   const latest = checkins[0];
   const previous = checkins[1];
@@ -185,6 +187,9 @@ export default async function ClientDetailPage({
 
       {/* Client OS intelligence (Step 6C) — health + training/engagement/nutrition */}
       <ClientIntelligence client={client} health={health} />
+
+      {/* Onboarding lifecycle (Step 6D) — shown while the client is onboarding */}
+      {onboarding.active && <OnboardingCard progress={onboarding} />}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ============ Left column ============ */}

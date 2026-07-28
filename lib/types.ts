@@ -20,6 +20,19 @@ export type ClientStatus =
   | "Churned"
   | "Completed";
 
+/**
+ * Onboarding lifecycle stages (Step 6D). Ordered from first contact to fully
+ * onboarded; matches the Clients."Onboarding Stage" select options in Notion.
+ * Checklist items themselves live in Coach Notes (no Tasks database).
+ */
+export type OnboardingStage =
+  | "Welcome"
+  | "Intake"
+  | "Program Assigned"
+  | "Nutrition Set"
+  | "First Check-in"
+  | "Onboarded";
+
 export type RiskLevel = "Green" | "Yellow" | "Red";
 
 export type CoachingFocus =
@@ -116,6 +129,10 @@ export interface Client {
   lastWorkout?: string; // ISO (Last Workout rollup)
   totalExercisesLogged?: number; // Total Exercises Logged rollup
   totalCheckIns?: number; // Total Check-ins rollup
+  /** Onboarding lifecycle (Step 6D) — optional; set in Notion, no migration. */
+  onboardingStage?: OnboardingStage;
+  onboardingStarted?: string; // ISO
+  onboardingCompleted?: string; // ISO
 }
 
 export type BillingStatus = "Active" | "Past Due" | "Paused" | "Cancelled" | "Trial";
