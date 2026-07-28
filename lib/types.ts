@@ -287,6 +287,24 @@ export interface Sale {
   paymentStatus: PaymentStatus;
 }
 
+/**
+ * Result of the lead → client conversion orchestration (convertLead). Structured
+ * so callers can report exactly what ran vs. what was deferred to a later phase.
+ */
+export interface ConversionStep {
+  name: string;
+  status: "completed" | "skipped";
+  detail?: string;
+}
+export interface ConversionResult {
+  success: boolean;
+  clientId: string;
+  created: boolean; // a new client was created on this call
+  alreadyConverted: boolean; // lead already had a Converted Client
+  stepsCompleted: string[];
+  skippedSteps: { name: string; reason: string }[];
+}
+
 export interface CheckIn {
   id: ID;
   notionId?: string;

@@ -45,6 +45,8 @@ import type {
   BillingStatus,
   NutritionLog,
   CoachNote,
+  ConversionStep,
+  ConversionResult,
 } from "./types";
 
 /** Data source IDs from the live SL Strength OS Notion workspace. */
@@ -634,6 +636,104 @@ async function updateLeadStage(
   }
 }
 
+/* ---- 3b. Lead → Client conversion orchestration ------------------ */
+
+/**
+ * Ecosystem setup hooks. Each is a safe seam a later phase fills in by calling
+ * the existing create helpers (createProgram / createNutritionLog / updateClient
+ * / createCheckIn / a future tasks store). Today they SKIP — the coach configures
+ * these on the client page — so conversion never fabricates records.
+ */
+async function setupProgramHook(_client: Client, _lead: Lead): Promise<ConversionStep> {
+  return { name: "Program", status: "skipped", detail: "No default program template — assign on the client page." };
+}
+async function setupNutritionHook(_client: Client, _lead: Lead): Promise<ConversionStep> {
+  return { name: "Nutrition", status: "skipped", detail: "No default nutrition profile — set targets on the client page." };
+}
+async function setupBillingHook(_client: Client, _lead: Lead): Promise<ConversionStep> {
+  return { name: "Billing", status: "skipped", detail: "No plan/rate on the lead — set billing on the client page." };
+}
+async function setupCheckInHook(_client: Client, _lead: Lead): Promise<ConversionStep> {
+  return { name: "Check-in schedule", status: "skipped", detail: "No check-in cadence configured yet." };
+}
+async function setupWelcomeTasksHook(_client: Client, _lead: Lead): Promise<ConversionStep> {
+  return { name: "Welcome tasks", status: "skipped", detail: "Tasks database not built yet." };
+}
+
+async function fetchLeadForConversion(id: string): Promise<Lead | undefined> {
+  if (!isLive) return sample.leads.find((l) => l.id === id);
+  try {
+    return mapLead(await getClient().pages.retrieve({ page_id: id }));
+  } catch (err) {
+    console.warn("[notion] convertLead: lead lookup failed — using sample:", errMsg(err));
+    return sample.leads.find((l) => l.id === id);
+  }
+}
+
+async function fetchClientForConversion(id: string): Promise<Client | undefined> {
+  if (!isLive) return sample.clients.find((c) => c.id === id);
+  try {
+    return mapClient(await getClient().pages.retrieve({ page_id: id }));
+  } catch (err) {
+    console.warn("[notion] convertLead: client lookup failed — using sample:", errMsg(err));
+    return sample.clients.find((c) => c.id === id);
+  }
+}
+
+/**
+ * Convert a lead into the client ecosystem. Idempotent: if the lead already has
+ * a Converted Client, it returns that client and creates nothing. Otherwise it
+ * reuses createClientFromLead (unchanged), then runs the ecosystem hooks (which
+ * skip today). Does not alter updateLeadStage / the Closed Won trigger.
+ */
+async function convertLead(leadId: string): Promise<ConversionResult> {
+  announce();
+  const lead = await fetchLeadForConversion(leadId);
+  if (!lead) throw new Error(`Lead ${leadId} not found`);
+
+  // Idempotency guard — already converted → return existing client, create nothing.
+  if (lead.convertedClient) {
+    return {
+      success: true,
+      clientId: lead.convertedClient,
+      created: false,
+      alreadyConverted: true,
+      stepsCompleted: [],
+      skippedSteps: [{ name: "All", reason: "Lead already converted to a client" }],
+    };
+  }
+
+  // Reuse the existing client creation verbatim.
+  const client = await createClientFromLead(lead);
+
+  // Persist the link so a repeat call is a no-op. Live mode already set the dual
+  // relation via createClientFromLead; sample mode records it locally.
+  if (!isLive) {
+    const sl = sample.leads.find((l) => l.id === leadId);
+    if (sl) sl.convertedClient = client.id;
+  }
+
+  // Ecosystem hooks — placeholders that skip (no fabricated records).
+  const steps = await Promise.all([
+    setupProgramHook(client, lead),
+    setupNutritionHook(client, lead),
+    setupBillingHook(client, lead),
+    setupCheckInHook(client, lead),
+    setupWelcomeTasksHook(client, lead),
+  ]);
+
+  return {
+    success: true,
+    clientId: client.id,
+    created: true,
+    alreadyConverted: false,
+    stepsCompleted: ["Client", ...steps.filter((s) => s.status === "completed").map((s) => s.name)],
+    skippedSteps: steps
+      .filter((s) => s.status === "skipped")
+      .map((s) => ({ name: s.name, reason: s.detail ?? "not configured" })),
+  };
+}
+
 /* ---- 4. Program assignment --------------------------------------- */
 
 async function createProgram(input: ProgramInput): Promise<Program> {
@@ -902,6 +1002,7 @@ export const notion = {
   createCheckIn,
   createLead,
   updateLeadStage,
+  convertLead,
   createProgram,
   createNutritionLog,
   createCoachNote,
