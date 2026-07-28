@@ -259,6 +259,19 @@ export interface Lead {
   notes: string;
   goal?: string;
   problem?: string;
+  /**
+   * CRM foundation (Leads/CRM Step 1). All optional & additive — existing
+   * records/sample data need no migration. Surfaced by mapLead from the
+   * (already-additive) Notion Leads schema.
+   */
+  phone?: string;
+  leadId?: number; // Notion auto-increment "Lead ID"
+  convertedClient?: string; // Client page id (Converted Client relation)
+  closeProbability?: number; // 0-100
+  assignedCoach?: string;
+  lastContact?: string; // ISO
+  consultDate?: string; // ISO
+  createdDate?: string; // ISO — Notion page created_time
 }
 
 export interface Sale {
@@ -457,6 +470,9 @@ export interface CoachNote {
   id: ID;
   notionId?: string;
   clientId: ID;
+  /** Optional Lead relation (Leads/CRM Step 1) — a note may belong to a lead
+   * instead of (or as well as) a client. Additive; existing notes leave it unset. */
+  leadId?: ID;
   created: string; // ISO
   author: string;
   type: NoteType;

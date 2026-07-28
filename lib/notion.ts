@@ -111,6 +111,10 @@ const url = (p: Prop): string => p?.url ?? "";
 const checkbox = (p: Prop): boolean => Boolean(p?.checkbox);
 const createdTime = (p: Prop): string => p?.created_time ?? "";
 const relationIds = (p: Prop): string[] => ((p?.relation ?? []) as Prop[]).map((r) => r.id);
+// Auto-increment / unique-id property (e.g. "Lead ID"). Tolerant of the number
+// living under unique_id, a plain number, or a formula/rollup.
+const uniqueId = (p: Prop): number | null =>
+  typeof p?.unique_id?.number === "number" ? p.unique_id.number : number(p);
 
 function initials(name: string): string {
   return name
@@ -181,6 +185,7 @@ function mapCoachNote(page: Prop): CoachNote {
     id: page.id,
     notionId: page.id,
     clientId: relationIds(p["Client"])[0] ?? "",
+    leadId: relationIds(p["Lead"])[0] ?? undefined,
     created: dateStr(p["Created"]) || createdTime(p["Created"]) || page.created_time || "",
     author: text(p["Author"]),
     type: (select(p["Type"]) as CoachNote["type"]) ?? "Coaching Note",
@@ -206,6 +211,15 @@ function mapLead(page: Prop): Lead {
     notes: text(p["Notes"]),
     goal: text(p["Goal"]),
     problem: text(p["Problem"]),
+    // CRM foundation (Step 1) — additive; each is optional / undefined when blank.
+    phone: phone(p["Phone"]) || undefined,
+    leadId: uniqueId(p["Lead ID"]) ?? undefined,
+    convertedClient: relationIds(p["Converted Client"])[0] ?? undefined,
+    closeProbability: number(p["Close Probability"]) ?? undefined,
+    assignedCoach: select(p["Assigned Coach"]) ?? undefined,
+    lastContact: dateStr(p["Last Contact"]) ?? undefined,
+    consultDate: dateStr(p["Consult Date"]) ?? undefined,
+    createdDate: page.created_time ?? undefined,
   };
 }
 
@@ -383,6 +397,17 @@ const wEmail = (s?: string) => ({ email: s || null });
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
+/**
+ * Human-readable business-ID seam (Leads/CRM Step 1). Establishes a reusable
+ * `SL-<ENTITY>-0001` pattern for future display IDs — e.g. businessId("LEAD", 1)
+ * → "SL-LEAD-0001". Not yet applied to any entity; the seam exists so later
+ * phases can format Notion's auto-increment ("Lead ID"/"Client ID") consistently
+ * without inventing a scheme per feature.
+ */
+export function businessId(entity: string, seq: number, pad = 4): string {
+  return `SL-${entity.toUpperCase()}-${String(Math.max(0, Math.trunc(seq))).padStart(pad, "0")}`;
+}
 
 let _seq = 0;
 function localId(prefix: string): string {
