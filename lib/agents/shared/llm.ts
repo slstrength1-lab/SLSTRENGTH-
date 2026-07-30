@@ -15,6 +15,14 @@ export const isAgentLive = Boolean(process.env.ANTHROPIC_API_KEY);
 /** Overridable model. Defaults to the latest Opus; set a cheaper model for volume. */
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5";
 
+/**
+ * The reason the most recent generate() returned null (API error, refusal, or
+ * unparseable output). Read by the agent route so the coach sees the real cause
+ * inline instead of a generic "nothing produced". Best-effort/last-write-wins —
+ * fine for the single-operator approvals flow.
+ */
+export let lastAgentError: string | null = null;
+
 let _client: Anthropic | null = null;
 function client(): Anthropic {
   if (!_client) _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -37,6 +45,7 @@ export interface GenerateOptions {
  */
 export async function generate<T = string>(opts: GenerateOptions): Promise<T | null> {
   if (!isAgentLive) return null;
+  lastAgentError = null;
   try {
     // Built as a loose object: output_config/effort aren't in every SDK typing yet.
     const req: Record<string, unknown> = {
@@ -54,20 +63,30 @@ export async function generate<T = string>(opts: GenerateOptions): Promise<T | n
     const res: any = await client().messages.create(req as any);
     const u = res.usage ?? {};
     console.info(`[agent] ${MODEL} in=${u.input_tokens ?? "?"} out=${u.output_tokens ?? "?"}`);
+    if (res.stop_reason === "refusal") {
+      lastAgentError = "the model declined this request (refusal)";
+      return null;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const textBlock = (res.content ?? []).find((b: any) => b.type === "text");
     const text: string = textBlock?.text ?? "";
     if (opts.schema) {
+      if (!text) {
+        lastAgentError = `model returned no text (stop_reason=${res.stop_reason ?? "?"})`;
+        return null;
+      }
       try {
         return JSON.parse(text) as T;
       } catch {
+        lastAgentError = "structured output did not parse as JSON";
         console.warn("[agent] structured output did not parse as JSON");
         return null;
       }
     }
     return text as unknown as T;
   } catch (err) {
-    console.warn("[agent] generate failed:", err instanceof Error ? err.message : err);
+    lastAgentError = err instanceof Error ? err.message : String(err);
+    console.warn("[agent] generate failed:", lastAgentError);
     return null;
   }
 }

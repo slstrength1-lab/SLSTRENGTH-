@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAgentLive } from "@/lib/agents/shared/llm";
+import { isAgentLive, lastAgentError } from "@/lib/agents/shared/llm";
 import { runBriefing } from "@/lib/agents/briefing";
 import { runCoachingForClient } from "@/lib/agents/coaching";
 import { runSalesForLead } from "@/lib/agents/sales";
@@ -51,10 +51,10 @@ export async function POST(request: Request, { params }: { params: { name: strin
     const result = await run(new Date().toISOString(), body);
     const recs = Array.isArray(result) ? result : result ? [result] : [];
     if (!recs.length) {
-      return NextResponse.json(
-        { ok: false, error: "No recommendation produced (missing clientId/leadId, or the model returned nothing)." },
-        { status: 502 },
-      );
+      const reason = lastAgentError
+        ? `The AI advisor returned nothing — ${lastAgentError}.`
+        : "No recommendation produced (missing clientId/leadId, or the model returned nothing).";
+      return NextResponse.json({ ok: false, error: reason }, { status: 502 });
     }
     return NextResponse.json({ ok: true, count: recs.length, data: recs }, { status: 201 });
   } catch (err) {
