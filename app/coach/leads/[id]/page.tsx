@@ -17,6 +17,7 @@ import type { LeadStage } from "@/lib/types";
 import { getLeadById, coachNotesForLead } from "@/lib/store";
 import * as analytics from "@/lib/analytics";
 import { Card, PageHeader, SectionTitle, Pill, Avatar } from "@/components/primitives";
+import { RunAgentButton } from "@/components/RunAgentButton";
 import { LeadPipelineControl } from "@/components/LeadPipelineControl";
 import { CoachNotes } from "@/components/CoachNotes";
 import { currency, longDate, relativeDate } from "@/lib/format";
@@ -81,9 +82,12 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-white">{currency(lead.estValue)}</div>
-            <div className="text-xs text-zinc-500">estimated value</div>
+          <div className="flex flex-col items-end gap-3">
+            <div className="text-right">
+              <div className="text-2xl font-bold text-white">{currency(lead.estValue)}</div>
+              <div className="text-xs text-zinc-500">estimated value</div>
+            </div>
+            <RunAgentButton agent="sales" label="Ask sales assistant" body={{ leadId: lead.id }} />
           </div>
         </div>
       </Card>

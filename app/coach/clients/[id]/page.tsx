@@ -42,6 +42,7 @@ import { clientHealthScore, onboardingProgress } from "@/lib/analytics/clients";
 import { LineChart } from "@/components/LineChart";
 import { ClientIntelligence } from "@/components/ClientIntelligence";
 import { OnboardingCard } from "@/components/OnboardingCard";
+import { RunAgentButton } from "@/components/RunAgentButton";
 import { ProgramStructure } from "@/components/ProgramStructure";
 import { NutritionModule } from "@/components/NutritionModule";
 import { BusinessModule } from "@/components/BusinessModule";
@@ -149,9 +150,12 @@ export default async function ClientDetailPage({
               </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-white">{currency(client.monthlyRate)}</div>
-            <div className="text-xs text-zinc-500">per month</div>
+          <div className="flex flex-col items-end gap-3">
+            <div className="text-right">
+              <div className="text-2xl font-bold text-white">{currency(client.monthlyRate)}</div>
+              <div className="text-xs text-zinc-500">per month</div>
+            </div>
+            <RunAgentButton agent="coaching" label="Ask coaching advisor" body={{ clientId: client.id }} />
           </div>
         </div>
       </Card>

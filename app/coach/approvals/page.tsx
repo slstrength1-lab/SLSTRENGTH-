@@ -25,8 +25,9 @@ export default async function ApprovalsPage() {
         title="Approvals"
         subtitle="Everything the AI proposes waits here for your call. Nothing reaches a client until you approve it."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <RunAgentButton agent="briefing" label="Generate briefing" />
+            <RunAgentButton agent="growth" label="Content ideas" />
             <Link href="/coach" className="rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-xs text-zinc-400 hover:text-white">
               ← Dashboard
             </Link>

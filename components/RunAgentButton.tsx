@@ -12,9 +12,11 @@ import { Sparkles, Loader2 } from "lucide-react";
 export function RunAgentButton({
   agent = "briefing",
   label = "Generate briefing",
+  body,
 }: {
   agent?: string;
   label?: string;
+  body?: Record<string, unknown>;
 }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "running" | "error">("idle");
@@ -24,7 +26,11 @@ export function RunAgentButton({
     setState("running");
     setMsg("");
     try {
-      const res = await fetch(`/api/agents/${agent}`, { method: "POST" });
+      const res = await fetch(`/api/agents/${agent}`, {
+        method: "POST",
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) {
         setState("error");

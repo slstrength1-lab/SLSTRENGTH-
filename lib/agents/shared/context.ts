@@ -4,10 +4,21 @@
  * (see docs/ai-architecture-review.md §6). Pure read: pulls from the store +
  * analytics, never Notion directly.
  */
-import { getOwnerData, summarizeOwner, getRecommendations } from "@/lib/store";
+import {
+  getOwnerData,
+  summarizeOwner,
+  getRecommendations,
+  getClientById,
+  checkInsForClient,
+  programForClient,
+  nutritionLogsForClient,
+  coachNotesForClient,
+  getLeadById,
+  coachNotesForLead,
+} from "@/lib/store";
 import { getOwnerConfig } from "@/lib/config";
 import * as analytics from "@/lib/analytics";
-import type { OwnerSummary, Lead } from "@/lib/types";
+import type { OwnerSummary, Lead, Client } from "@/lib/types";
 import { currency } from "@/lib/format";
 
 export interface BusinessContext {
@@ -60,4 +71,91 @@ export async function assembleBusinessContext(nowISO: string): Promise<BusinessC
   ].join("\n");
 
   return { asOf: date, summary: s, pendingRecommendations: pending, brief };
+}
+
+/* ---- Client context (A2 — Coaching Advisor) ---------------------- */
+
+export interface ClientContext {
+  asOf: string;
+  client: Client;
+  brief: string;
+}
+
+/** Assemble one client's full coaching state. Null if the client isn't found. */
+export async function assembleClientContext(
+  clientId: string,
+  nowISO: string,
+): Promise<ClientContext | null> {
+  const date = nowISO.slice(0, 10);
+  const client = await getClientById(clientId);
+  if (!client) return null;
+
+  const [checkIns, program, nutrition, notes] = await Promise.all([
+    checkInsForClient(clientId),
+    programForClient(clientId),
+    nutritionLogsForClient(clientId),
+    coachNotesForClient(clientId),
+  ]);
+  const health = analytics.clients.clientHealthScore(client, date);
+  const ci = checkIns[0];
+  const nut = nutrition[0];
+
+  const brief = [
+    `Client: ${client.name} — status ${client.status}, focus ${client.coachingFocus.join("/") || "—"}.`,
+    line("Primary goal", client.primaryGoal || "—"),
+    line("Health score", `${health.score}/100 (${health.category}, confidence ${Math.round(health.confidence * 100)}%)`),
+    line("Risk level", client.riskLevel),
+    line("Training", client.workoutCompletion != null ? `${client.workoutCompletion}% completion${client.avgRPE != null ? `, avg RPE ${client.avgRPE}` : ""}` : "no workout data"),
+    ci
+      ? line("Latest check-in", `${ci.date} — bodyweight ${ci.bodyweight}, compliance ${ci.compliance}%, energy ${ci.energy}, sleep ${ci.sleep}, stress ${ci.stress}. Wins: ${ci.wins || "—"}. Challenges: ${ci.challenges || "—"}`)
+      : line("Latest check-in", "none on file"),
+    program
+      ? line("Active program", `${program.name} — ${program.type}, phase ${program.phase}, status ${program.status}`)
+      : line("Active program", "none assigned"),
+    nut
+      ? line("Nutrition", `${nut.strategy || "—"} — target ${nut.targetCalories} kcal, compliance ${nut.compliance}%`)
+      : line("Nutrition", "no plan logged"),
+    line(
+      "Recent coach notes",
+      notes.length ? notes.slice(0, 3).map((n) => `[${n.type}] ${n.body}`).join(" | ") : "none",
+    ),
+  ].join("\n");
+
+  return { asOf: date, client, brief };
+}
+
+/* ---- Lead context (A3 — Sales Assistant) ------------------------- */
+
+export interface LeadContext {
+  asOf: string;
+  lead: Lead;
+  brief: string;
+}
+
+/** Assemble one lead's sales context. Null if the lead isn't found. */
+export async function assembleLeadContext(leadId: string, nowISO: string): Promise<LeadContext | null> {
+  const date = nowISO.slice(0, 10);
+  const lead = await getLeadById(leadId);
+  if (!lead) return null;
+  const notes = await coachNotesForLead(leadId);
+
+  const daysSinceContact = lead.lastContact
+    ? Math.max(0, Math.round((Date.parse(date) - Date.parse(lead.lastContact)) / 86400000))
+    : null;
+
+  const brief = [
+    `Lead: ${lead.name} — stage ${analytics.leads.stageLabel(lead.stage)}, source ${lead.source || "—"}.`,
+    line("Interest", lead.interest.join("/") || "—"),
+    line("Estimated value", currency(lead.estValue)),
+    line("Close probability", typeof lead.closeProbability === "number" ? `${lead.closeProbability}%` : "—"),
+    line("Expected revenue", currency(analytics.leads.expectedRevenue(lead))),
+    line("Goal", lead.goal || "—"),
+    line("Stated problem", lead.problem || "—"),
+    line("Days since last contact", daysSinceContact == null ? "unknown" : String(daysSinceContact)),
+    line("Next follow-up", lead.nextFollowUp || "not scheduled"),
+    line("Consult date", lead.consultDate || "none booked"),
+    line("Recent notes", notes.length ? notes.slice(0, 3).map((n) => n.body).join(" | ") : "none"),
+  ].join("\n");
+
+  return { asOf: date, lead, brief };
 }
