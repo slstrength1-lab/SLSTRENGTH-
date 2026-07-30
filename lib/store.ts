@@ -41,6 +41,8 @@ import type {
   Recommendation,
 } from "./types";
 import type { OwnerData } from "./analytics/context";
+import { cookies } from "next/headers";
+import { CLIENT_COOKIE, verifyToken } from "./auth/session";
 
 // Analytics live in lib/analytics/*. Re-exported here so existing consumers that
 // import compute functions from the store keep working (UI → analytics ← store).
@@ -138,11 +140,30 @@ export async function getClientById(id: string): Promise<Client | undefined> {
 }
 
 /**
- * The client currently "logged in" to the portal.
- * Prefers NOTION_DEMO_CLIENT_EMAIL, then the first Active client, then any.
+ * The client currently "logged in" to the portal. Resolves in order:
+ *   1. the magic-link session cookie (the real logged-in client),
+ *   2. NOTION_DEMO_CLIENT_EMAIL (dev / coach preview),
+ *   3. the first Active client, then any.
+ * Middleware already gates the portal, so by the time a page calls this a valid
+ * session exists in production; the fallbacks keep local dev and coach preview
+ * working without a client login.
  */
 export async function getCurrentClient(): Promise<Client> {
   const clients = await getClients();
+  try {
+    const token = cookies().get(CLIENT_COOKIE)?.value;
+    const claims = await verifyToken(token);
+    if (claims) {
+      const byId = clients.find((c) => c.id === claims.cid);
+      if (byId) return byId;
+      const byEmail = clients.find(
+        (c) => c.email && c.email.toLowerCase() === claims.email.toLowerCase(),
+      );
+      if (byEmail) return byEmail;
+    }
+  } catch {
+    // not in a request scope, or no cookie — fall through to defaults
+  }
   const preferEmail = process.env.NOTION_DEMO_CLIENT_EMAIL;
   return (
     (preferEmail && clients.find((c) => c.email === preferEmail)) ||

@@ -43,6 +43,7 @@ import { LineChart } from "@/components/LineChart";
 import { ClientIntelligence } from "@/components/ClientIntelligence";
 import { OnboardingCard } from "@/components/OnboardingCard";
 import { RunAgentButton } from "@/components/RunAgentButton";
+import { ClientPortalLink } from "@/components/ClientPortalLink";
 import { ProgramStructure } from "@/components/ProgramStructure";
 import { NutritionModule } from "@/components/NutritionModule";
 import { BusinessModule } from "@/components/BusinessModule";
@@ -156,6 +157,7 @@ export default async function ClientDetailPage({
               <div className="text-xs text-zinc-500">per month</div>
             </div>
             <RunAgentButton agent="coaching" label="Ask coaching advisor" body={{ clientId: client.id }} />
+            <ClientPortalLink clientId={client.id} />
           </div>
         </div>
       </Card>

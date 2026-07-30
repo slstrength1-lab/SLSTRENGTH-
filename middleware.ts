@@ -1,30 +1,62 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { GATE_COOKIE, gateToken } from "@/lib/gate";
+import { CLIENT_COOKIE, verifyToken } from "@/lib/auth/session";
 
 /**
- * Site-wide password wall. When SITE_PASSWORD is set, every route requires a
- * valid auth cookie; otherwise visitors are sent to /login. When SITE_PASSWORD
- * is unset (e.g. local dev), the gate is disabled and the app is open.
- *
- * Only guards page + API traffic — the matcher excludes Next internals and
- * static assets so the login screen and its styles always load.
+ * Two gates, one middleware (active only when SITE_PASSWORD is set — dev stays
+ * open):
+ *   • Client portal (Dashboard/Training/Nutrition/Check-ins/Progress/Messages)
+ *     → requires a valid client magic-link session (a coach session also passes,
+ *     so Shane can preview a client view). Otherwise → /portal-login.
+ *   • Everything else (the /coach area + coach APIs) → requires the coach
+ *     password session. Otherwise → /login.
+ * Public: the two login screens and the endpoints that authenticate them.
  */
+const PORTAL_PAGES = ["/dashboard", "/training", "/nutrition", "/checkins", "/progress", "/messages"];
+const PORTAL_APIS = ["/api/checkins"];
+
+function matches(pathname: string, roots: string[]): boolean {
+  return roots.some((r) => pathname === r || pathname.startsWith(r + "/"));
+}
+
+function isPublic(pathname: string): boolean {
+  return (
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/portal-login" ||
+    pathname === "/api/login" ||
+    pathname === "/api/portal/login" ||
+    pathname === "/api/portal/verify"
+  );
+}
+
+async function coachOk(req: NextRequest, password: string): Promise<boolean> {
+  const token = req.cookies.get(GATE_COOKIE)?.value;
+  return Boolean(token && token === (await gateToken(password)));
+}
+
+async function clientOk(req: NextRequest): Promise<boolean> {
+  return Boolean(await verifyToken(req.cookies.get(CLIENT_COOKIE)?.value));
+}
+
 export async function middleware(req: NextRequest) {
   const password = process.env.SITE_PASSWORD;
-  if (!password) return NextResponse.next(); // gate disabled
+  if (!password) return NextResponse.next(); // gates disabled (dev)
 
   const { pathname } = req.nextUrl;
-  // Always reachable: the login screen and the endpoint that authenticates it.
-  if (pathname === "/login" || pathname === "/api/login") {
-    return NextResponse.next();
+  if (isPublic(pathname)) return NextResponse.next();
+
+  // Client portal — client OR coach session.
+  if (matches(pathname, PORTAL_PAGES) || matches(pathname, PORTAL_APIS)) {
+    if ((await clientOk(req)) || (await coachOk(req, password))) return NextResponse.next();
+    const url = req.nextUrl.clone();
+    url.pathname = "/portal-login";
+    return NextResponse.redirect(url);
   }
 
-  const token = req.cookies.get(GATE_COOKIE)?.value;
-  if (token && token === (await gateToken(password))) {
-    return NextResponse.next();
-  }
-
+  // Coach area — coach session only.
+  if (await coachOk(req, password)) return NextResponse.next();
   const url = req.nextUrl.clone();
   url.pathname = "/login";
   if (pathname !== "/") url.searchParams.set("from", pathname);
@@ -32,6 +64,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Guard everything except Next internals and common static assets.
   matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
 };
