@@ -398,16 +398,43 @@ function mapRecommendation(page: Prop): Recommendation {
 /* Query + fallback                                                    */
 /* ------------------------------------------------------------------ */
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Notion rate-limits bursts (~3 req/s) and returns transient 5xx. A page render
+ * fires many data-source queries at once, so without retries an occasional 429
+ * would make a whole list fall back to empty. Retry those with backoff; let
+ * genuine errors (bad id, auth) surface immediately.
+ */
+function isTransient(err: unknown): boolean {
+  const e = err as { status?: number; code?: string } | undefined;
+  if (e?.status && [429, 500, 502, 503, 504].includes(e.status)) return true;
+  return e?.code === "rate_limited" || e?.code === "service_unavailable" || e?.code === "internal_server_error";
+}
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i >= attempts - 1 || !isTransient(err)) throw err;
+      await sleep(400 * Math.pow(2, i)); // 400ms, 800ms, 1600ms
+    }
+  }
+}
+
 async function queryAll(dataSourceId: string): Promise<Prop[]> {
   const client = getClient();
   const results: Prop[] = [];
   let cursor: string | undefined = undefined;
   do {
-    const res: Prop = await client.dataSources.query({
-      data_source_id: dataSourceId,
-      start_cursor: cursor,
-      page_size: 100,
-    });
+    const res: Prop = await withRetry(() =>
+      client.dataSources.query({
+        data_source_id: dataSourceId,
+        start_cursor: cursor,
+        page_size: 100,
+      }),
+    );
     results.push(...res.results);
     cursor = res.has_more ? (res.next_cursor as string) : undefined;
   } while (cursor);

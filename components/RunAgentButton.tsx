@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, Check } from "lucide-react";
 
 /**
  * Runs an AI advisor on demand (POST /api/agents/:name). On success the advisor
@@ -19,7 +19,7 @@ export function RunAgentButton({
   body?: Record<string, unknown>;
 }) {
   const router = useRouter();
-  const [state, setState] = useState<"idle" | "running" | "error">("idle");
+  const [state, setState] = useState<"idle" | "running" | "created" | "error">("idle");
   const [msg, setMsg] = useState("");
 
   async function run() {
@@ -37,8 +37,13 @@ export function RunAgentButton({
         setMsg(json.error || "Run failed");
         return;
       }
-      setState("idle");
-      router.refresh();
+      // Show a confirmation, then give Notion a moment to index the new row(s)
+      // before refreshing so the new card is present when the inbox re-renders.
+      setState("created");
+      setTimeout(() => {
+        router.refresh();
+        setState("idle");
+      }, 2500);
     } catch {
       setState("error");
       setMsg("Run failed");
@@ -49,11 +54,17 @@ export function RunAgentButton({
     <div className="flex items-center gap-2">
       <button
         onClick={run}
-        disabled={state === "running"}
+        disabled={state === "running" || state === "created"}
         className="flex items-center gap-1.5 rounded-xl bg-blood-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-blood-600 disabled:opacity-60"
       >
-        {state === "running" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-        {state === "running" ? "Thinking…" : label}
+        {state === "running" ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : state === "created" ? (
+          <Check className="h-4 w-4" />
+        ) : (
+          <Sparkles className="h-4 w-4" />
+        )}
+        {state === "running" ? "Thinking…" : state === "created" ? "Created ✓ refreshing…" : label}
       </button>
       {state === "error" && <span className="max-w-[220px] text-xs text-blood-400">{msg}</span>}
     </div>
