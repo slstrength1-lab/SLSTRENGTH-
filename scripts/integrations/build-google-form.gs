@@ -21,7 +21,7 @@
  * ────────────────────────────────────────────────────────────────────────────
  */
 
-var BOOKING_LINK = ""; // e.g. "https://calendly.com/slstrength/consult" — optional
+var BOOKING_LINK = "https://calendar.app.google/dmSm2nhcTNXp8Dvh9"; // SL Strength consult booking
 
 /* ── Notion config (SL Strength OS) ─────────────────────────────────────────*/
 var LEADS_DATA_SOURCE_ID = "a7d125f8-b72a-4b17-8f54-5735e4fce805";
