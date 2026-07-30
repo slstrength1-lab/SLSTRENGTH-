@@ -47,6 +47,11 @@ import type {
   CoachNote,
   ConversionStep,
   ConversionResult,
+  Recommendation,
+  RecommendationKind,
+  RecommendationStatus,
+  RiskTier,
+  AgentSource,
 } from "./types";
 
 /** Data source IDs from the live SL Strength OS Notion workspace. */
@@ -61,6 +66,7 @@ export const NOTION_DATA_SOURCES = {
   workouts: "7f5e8a76-c1f1-4f66-856b-122ea2e9904c",
   nutrition: "7fef8dfe-692d-4e5f-af53-b592f1d0a672",
   coachNotes: "6ec70405-6d57-4abf-ab6b-7131aa403a48",
+  recommendations: "57947489-015d-4156-884c-3789476b888c",
 } as const;
 
 /** True once NOTION_API_KEY is configured. */
@@ -362,6 +368,29 @@ function mapWorkout(page: Prop): WorkoutRow {
     completed: checkbox(p["Completed"]),
     date: dateStr(p["Date"]) ?? undefined,
     notes: text(p["Notes"]) || undefined,
+  };
+}
+
+function mapRecommendation(page: Prop): Recommendation {
+  const p: Props = page.properties;
+  return {
+    id: page.id,
+    notionId: page.id,
+    title: text(p["Name"]) || "Recommendation",
+    kind: (select(p["Kind"]) as RecommendationKind) ?? "Ops Task",
+    source: (select(p["Source"]) as AgentSource) ?? "System",
+    riskTier: (select(p["Risk Tier"]) as RiskTier) ?? "review",
+    status: (select(p["Status"]) as RecommendationStatus) ?? "pending",
+    summary: text(p["Summary"]),
+    draft: text(p["Draft"]),
+    clientId: relationIds(p["Client"])[0] || undefined,
+    leadId: relationIds(p["Lead"])[0] || undefined,
+    dedupKey: text(p["Dedup Key"]) || undefined,
+    confidence: number(p["Confidence"]) ?? undefined,
+    created: page.created_time ?? "",
+    reviewed: dateStr(p["Reviewed"]) ?? undefined,
+    reviewedBy: text(p["Reviewed By"]) || undefined,
+    appliedResultId: text(p["Applied Result Id"]) || undefined,
   };
 }
 
@@ -1077,6 +1106,106 @@ async function updateClient(id: string, patch: ClientPatch): Promise<Client> {
   }
 }
 
+/* ---- 9. AI Recommendation ledger (Phase 0 — approval backbone) --- */
+
+/**
+ * Sample-mode store for recommendations. The other new databases fall back to
+ * an empty array, but agents *write* recommendations, so in sample/local mode
+ * (no NOTION_API_KEY) we keep them in memory so the approval inbox is testable
+ * end to end without touching Notion.
+ */
+const _sampleRecs: Recommendation[] = [];
+
+export interface RecommendationInput {
+  title: string;
+  kind: RecommendationKind;
+  source: AgentSource;
+  riskTier: RiskTier;
+  summary: string;
+  draft: string;
+  clientId?: string;
+  leadId?: string;
+  dedupKey?: string;
+  confidence?: number;
+  status?: RecommendationStatus;
+}
+
+async function createRecommendation(input: RecommendationInput): Promise<Recommendation> {
+  announce();
+  const record: Recommendation = {
+    id: localId("rec"),
+    title: input.title,
+    kind: input.kind,
+    source: input.source,
+    riskTier: input.riskTier,
+    status: input.status ?? "pending",
+    summary: input.summary,
+    draft: input.draft,
+    clientId: input.clientId,
+    leadId: input.leadId,
+    dedupKey: input.dedupKey,
+    confidence: input.confidence,
+    created: new Date().toISOString(),
+  };
+  if (!isLive) return sampleInsert(_sampleRecs, record);
+  try {
+    const props: Record<string, unknown> = {
+      Name: wTitle(input.title || "Recommendation"),
+      Kind: wSel(input.kind),
+      Source: wSel(input.source),
+      "Risk Tier": wSel(input.riskTier),
+      Status: wSel(record.status),
+      Summary: wRich(input.summary),
+      Draft: wRich(input.draft),
+      Confidence: wNum(input.confidence),
+      "Dedup Key": wRich(input.dedupKey),
+    };
+    if (input.clientId) props["Client"] = wRel([input.clientId]);
+    if (input.leadId) props["Lead"] = wRel([input.leadId]);
+    return mapRecommendation(await createPage(NOTION_DATA_SOURCES.recommendations, props));
+  } catch (err) {
+    console.warn("[notion] createRecommendation failed — writing to sample memory:", errMsg(err));
+    return sampleInsert(_sampleRecs, record);
+  }
+}
+
+export interface RecommendationPatch {
+  status?: RecommendationStatus;
+  draft?: string;
+  reviewedBy?: string;
+  reviewed?: string;
+  appliedResultId?: string;
+}
+
+async function updateRecommendation(id: string, patch: RecommendationPatch): Promise<Recommendation> {
+  announce();
+  const sampleUpdate = (): Recommendation => {
+    const r = _sampleRecs.find((x) => x.id === id);
+    if (!r) throw new Error(`Recommendation ${id} not found in sample memory`);
+    if (patch.status !== undefined) r.status = patch.status;
+    if (patch.draft !== undefined) r.draft = patch.draft;
+    if (patch.reviewedBy !== undefined) r.reviewedBy = patch.reviewedBy;
+    if (patch.reviewed !== undefined) r.reviewed = patch.reviewed;
+    if (patch.appliedResultId !== undefined) r.appliedResultId = patch.appliedResultId;
+    return r;
+  };
+  if (!isLive) return sampleUpdate();
+  try {
+    const props: Record<string, unknown> = {};
+    if (patch.status !== undefined) props["Status"] = wSel(patch.status);
+    if (patch.draft !== undefined) props["Draft"] = wRich(patch.draft);
+    if (patch.reviewedBy !== undefined) props["Reviewed By"] = wRich(patch.reviewedBy);
+    if (patch.reviewed !== undefined) props["Reviewed"] = wDate(patch.reviewed);
+    if (patch.appliedResultId !== undefined) props["Applied Result Id"] = wRich(patch.appliedResultId);
+    const client = getClient();
+    await client.pages.update({ page_id: id, properties: props } as Prop);
+    return mapRecommendation(await client.pages.retrieve({ page_id: id } as Prop));
+  } catch (err) {
+    console.warn("[notion] updateRecommendation failed — updating sample memory:", errMsg(err));
+    return sampleUpdate();
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Public adapter (reads + writes; same shapes, live-capable)          */
 /* ------------------------------------------------------------------ */
@@ -1106,9 +1235,14 @@ export const notion = {
     fetchOrFallback("nutrition", NOTION_DATA_SOURCES.nutrition, mapNutrition, []),
   getCoachNotes: (): Promise<CoachNote[]> =>
     fetchOrFallback("coach-notes", NOTION_DATA_SOURCES.coachNotes, mapCoachNote, []),
+  // AI Recommendations ledger — sample mode uses an in-memory store (agents write here).
+  getRecommendations: (): Promise<Recommendation[]> =>
+    fetchOrFallback("recommendations", NOTION_DATA_SOURCES.recommendations, mapRecommendation, _sampleRecs),
 
   // Writes
   createCheckIn,
+  createRecommendation,
+  updateRecommendation,
   createLead,
   createClient,
   updateLeadStage,

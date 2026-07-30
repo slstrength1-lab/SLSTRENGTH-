@@ -18,6 +18,7 @@ export * as nutrition from "./nutrition";
 export * as content from "./content";
 export * as operations from "./operations";
 export * as leads from "./leads";
+export * as recommendations from "./recommendations";
 export { priorities } from "./risk";
 export { calendar } from "./calendar";
 export { summarizeOwner } from "./owner";

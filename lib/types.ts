@@ -528,6 +528,80 @@ export interface CoachNote {
 }
 
 /* ------------------------------------------------------------------ */
+/* AI layer — Recommendation & Approval ledger (Phase 0 foundation)     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Risk tier decides how a recommendation flows once produced:
+ *   safe   — read-only / no external side effect; may auto-apply (Phase 5).
+ *   review — reaches a client/lead or changes a plan; requires human approval.
+ *   manual — high-stakes/irreversible; the AI only prepares context, never acts.
+ * The tier lives on the recommendation so one pipeline handles all three by
+ * policy, not by special-casing.
+ */
+export type RiskTier = "safe" | "review" | "manual";
+
+export type RecommendationStatus =
+  | "pending" // awaiting human review
+  | "approved" // approved, not yet executed
+  | "applied" // executed into a domain record
+  | "rejected" // declined by the human
+  | "dismissed"; // no longer relevant (superseded / stale)
+
+/** What the recommendation proposes — maps to an advisor + an execution path. */
+export type RecommendationKind =
+  | "Briefing" // A1 — read-only daily/weekly synthesis
+  | "Check-in Response" // A2
+  | "Program Update" // A2
+  | "Nutrition Update" // A2
+  | "Client Message" // A2 / comms capability
+  | "Sales Follow-up" // A3
+  | "Content" // A4
+  | "Product" // A4
+  | "Ops Task"; // operations
+
+/** Which advisor emitted it (see docs/ai-architecture-review.md). */
+export type AgentSource =
+  | "Strategist" // A1
+  | "Coaching Advisor" // A2
+  | "Sales Assistant" // A3
+  | "Growth Engine" // A4
+  | "System"; // deterministic / non-LLM origin
+
+/**
+ * One row of the AI Recommendations ledger — the approval backbone. Every agent
+ * writes proposals here (never to domain tables directly); a human approves or
+ * rejects in the /coach/approvals inbox; the execution service applies approved
+ * rows to the real databases. The ledger is simultaneously the bus, the audit
+ * trail, and the history.
+ */
+export interface Recommendation {
+  id: ID;
+  notionId?: string;
+  title: string;
+  kind: RecommendationKind;
+  source: AgentSource;
+  riskTier: RiskTier;
+  status: RecommendationStatus;
+  /** Human-readable rationale — why the agent proposes this. */
+  summary: string;
+  /** The proposed content: message text, program notes, brief body, caption… */
+  draft: string;
+  clientId?: ID;
+  clientName?: string;
+  leadId?: ID;
+  leadName?: string;
+  /** Idempotency key so the same proposal doesn't reappear each run. */
+  dedupKey?: string;
+  confidence?: number; // 0-100
+  created: string; // ISO
+  reviewed?: string; // ISO — when a human acted
+  reviewedBy?: string;
+  /** Id of the domain record created when an approved rec is executed. */
+  appliedResultId?: string;
+}
+
+/* ------------------------------------------------------------------ */
 /* Progress + messaging                                                */
 /* ------------------------------------------------------------------ */
 

@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Users,
   UserPlus,
+  Inbox,
   Menu,
   X,
   ArrowLeftRight,
@@ -37,6 +38,7 @@ const ICONS = {
   messages: MessageSquare,
   clients: Users,
   leads: UserPlus,
+  approvals: Inbox,
 } as const;
 
 export const CLIENT_NAV: NavItem[] = [
@@ -52,6 +54,7 @@ export const COACH_NAV: NavItem[] = [
   { href: "/coach", label: "Overview", icon: "dashboard" },
   { href: "/coach/clients", label: "Clients", icon: "clients" },
   { href: "/coach/leads", label: "Leads", icon: "leads" },
+  { href: "/coach/approvals", label: "Approvals", icon: "approvals" },
 ];
 
 export type ShellUser = { name: string; initials: string; sub: string };

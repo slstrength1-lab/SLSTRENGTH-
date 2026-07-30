@@ -38,6 +38,7 @@ import type {
   ProgressPoint,
   Message,
   WeeklyPriority,
+  Recommendation,
 } from "./types";
 import type { OwnerData } from "./analytics/context";
 
@@ -57,6 +58,7 @@ const metricsRaw = cache(() => notion.getMetrics());
 const workoutsRaw = cache(() => notion.getWorkouts());
 const nutritionRaw = cache(() => notion.getNutrition());
 const coachNotesRaw = cache(() => notion.getCoachNotes());
+const recommendationsRaw = cache(() => notion.getRecommendations());
 
 function activePhase(programs: Program[], clientId: string): ProgramPhase | undefined {
   const p =
@@ -287,6 +289,43 @@ export async function getContent(): Promise<ContentItem[]> {
 
 export async function getMetrics(): Promise<Metric[]> {
   return [...(await metricsRaw())].sort((a, b) => (a.weekOf < b.weekOf ? 1 : -1));
+}
+
+/* ------------------------------------------------------------------ */
+/* AI Recommendations ledger (Phase 0 — approval backbone)             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * All recommendations (newest first), enriched with the client/lead display
+ * names the ledger stores only as relations. Agents write here; the approval
+ * inbox reads here. UI → analytics ← store → notion → Notion.
+ */
+export async function getRecommendations(): Promise<Recommendation[]> {
+  const [recs, clients, leads] = await Promise.all([recommendationsRaw(), clientsRaw(), leadsRaw()]);
+  const clientName = new Map(clients.map((c) => [c.id, c.name]));
+  const leadName = new Map(leads.map((l) => [l.id, l.name]));
+  return recs
+    .map((r) => ({
+      ...r,
+      clientName: r.clientId ? clientName.get(r.clientId) : undefined,
+      leadName: r.leadId ? leadName.get(r.leadId) : undefined,
+    }))
+    .sort((a, b) => (a.created < b.created ? 1 : -1));
+}
+
+/** A single recommendation by id. */
+export async function getRecommendationById(id: string): Promise<Recommendation | undefined> {
+  return (await getRecommendations()).find((r) => r.id === id);
+}
+
+/** Recommendations attached to a client (newest first). */
+export async function recommendationsForClient(clientId: string): Promise<Recommendation[]> {
+  return (await getRecommendations()).filter((r) => r.clientId === clientId);
+}
+
+/** Recommendations attached to a lead (newest first). */
+export async function recommendationsForLead(leadId: string): Promise<Recommendation[]> {
+  return (await getRecommendations()).filter((r) => r.leadId === leadId);
 }
 
 /* ------------------------------------------------------------------ */
