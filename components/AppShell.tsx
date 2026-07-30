@@ -50,6 +50,7 @@ export const CLIENT_NAV: NavItem[] = [
 
 export const COACH_NAV: NavItem[] = [
   { href: "/coach", label: "Overview", icon: "dashboard" },
+  { href: "/coach/clients", label: "Clients", icon: "clients" },
   { href: "/coach/leads", label: "Leads", icon: "leads" },
 ];
 

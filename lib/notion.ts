@@ -418,6 +418,7 @@ const wMulti = (names: string[]) => ({ multi_select: names.map((name) => ({ name
 const wDate = (start?: string) => (start ? { date: { start } } : { date: null });
 const wRel = (ids: string[]) => ({ relation: ids.map((id) => ({ id })) });
 const wEmail = (s?: string) => ({ email: s || null });
+const wPhone = (s?: string) => ({ phone_number: s || null });
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -470,11 +471,36 @@ export interface CheckInInput {
 
 export interface LeadInput {
   name: string;
-  contact?: string;
+  contact?: string; // legacy alias for email (kept for backward compat)
+  email?: string;
+  phone?: string;
   source?: string;
+  interest?: CoachingFocus[];
+  estValue?: number;
   goal?: string;
   problem?: string;
+  nextAction?: string;
+  nextFollowUp?: string; // ISO
+  consultDate?: string; // ISO
+  closeProbability?: number; // 0-100
+  assignedCoach?: string;
   status?: LeadStage;
+}
+
+export interface ClientInput {
+  name: string;
+  email?: string;
+  phone?: string;
+  status?: ClientStatus;
+  coachingFocus?: CoachingFocus[];
+  startDate?: string; // ISO
+  renewalDate?: string; // ISO
+  monthlyRate?: number;
+  primaryGoal?: string;
+  source?: string;
+  plan?: string;
+  billingStatus?: BillingStatus;
+  riskLevel?: RiskLevel;
 }
 
 export interface ProgramInput {
@@ -563,15 +589,19 @@ async function createLead(input: LeadInput): Promise<Lead> {
     id: localId("ld"),
     name: input.name,
     stage: input.status ?? "New",
-    email: input.contact ?? "",
+    email: input.email ?? input.contact ?? "",
     source: input.source ?? "",
-    interest: [],
-    estValue: 0,
-    nextFollowUp: "",
-    nextAction: "",
+    interest: input.interest ?? [],
+    estValue: input.estValue ?? 0,
+    nextFollowUp: input.nextFollowUp ?? "",
+    nextAction: input.nextAction ?? "",
     notes: "",
     goal: input.goal ?? "",
     problem: input.problem ?? "",
+    phone: input.phone || undefined,
+    consultDate: input.consultDate || undefined,
+    closeProbability: input.closeProbability,
+    assignedCoach: input.assignedCoach || undefined,
   };
   if (!isLive) return sampleInsert(sample.leads, record);
   try {
@@ -579,14 +609,71 @@ async function createLead(input: LeadInput): Promise<Lead> {
       Name: wTitle(record.name),
       Stage: wSel(record.stage),
       Email: wEmail(record.email),
+      Phone: wPhone(record.phone),
       Source: wSel(record.source || undefined),
+      Interest: wMulti(record.interest),
+      "Est. Value": wNum(record.estValue),
       Goal: wRich(record.goal),
       Problem: wRich(record.problem),
+      "Next Action": wRich(record.nextAction),
+      "Next Follow-up": wDate(record.nextFollowUp || undefined),
+      "Consult Date": wDate(record.consultDate),
+      "Close Probability": wNum(record.closeProbability),
+      "Assigned Coach": wSel(record.assignedCoach),
     };
     return mapLead(await createPage(NOTION_DATA_SOURCES.leads, props));
   } catch (err) {
     console.warn("[notion] createLead failed — writing to sample memory:", errMsg(err));
     return sampleInsert(sample.leads, record);
+  }
+}
+
+/* ---- Manual client creation (coach-side "Add Client") ------------ */
+
+async function createClient(input: ClientInput): Promise<Client> {
+  announce();
+  const record: Client = {
+    id: localId("cl"),
+    name: input.name,
+    email: input.email ?? "",
+    avatarInitials: initials(input.name),
+    status: input.status ?? "Onboarding",
+    coachingFocus: input.coachingFocus ?? [],
+    startDate: input.startDate ?? today(),
+    renewalDate: input.renewalDate ?? "",
+    monthlyRate: input.monthlyRate ?? 0,
+    primaryGoal: input.primaryGoal ?? "",
+    riskLevel: input.riskLevel ?? "Green",
+    source: input.source ?? "",
+    currentPhase: "Foundation",
+    compliance: 0,
+    lastCheckIn: input.startDate ?? today(),
+    lifetimeRevenue: 0,
+    phone: input.phone || undefined,
+    plan: input.plan || undefined,
+    billingStatus: input.billingStatus,
+  };
+  if (!isLive) return sampleInsert(sample.clients, record);
+  try {
+    const props: Record<string, unknown> = {
+      Name: wTitle(record.name),
+      Email: wEmail(record.email),
+      Phone: wPhone(record.phone),
+      Status: wSel(record.status),
+      "Coaching Focus": wMulti(record.coachingFocus),
+      "Start Date": wDate(record.startDate || undefined),
+      "Renewal Date": wDate(record.renewalDate || undefined),
+      "Monthly Rate": wNum(record.monthlyRate),
+      "Primary Goal": wRich(record.primaryGoal),
+      Source: wSel(record.source || undefined),
+      Plan: wSel(record.plan),
+      "Billing Status": wSel(record.billingStatus),
+      "Risk Level": wSel(record.riskLevel),
+    };
+    return mapClient(await createPage(NOTION_DATA_SOURCES.clients, props));
+  } catch (err) {
+    console.warn("[notion] createClient failed — writing to sample memory:", errMsg(err));
+    return sampleInsert(sample.clients, record);
   }
 }
 
@@ -1023,6 +1110,7 @@ export const notion = {
   // Writes
   createCheckIn,
   createLead,
+  createClient,
   updateLeadStage,
   convertLead,
   createProgram,

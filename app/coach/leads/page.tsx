@@ -5,6 +5,7 @@ import { getLeads } from "@/lib/store";
 import * as analytics from "@/lib/analytics";
 import { PageHeader, Card, SectionTitle, StatCard, Pill } from "@/components/primitives";
 import { PipelineBoard } from "@/components/PipelineBoard";
+import { AddLeadForm } from "@/components/AddLeadForm";
 import { currency, pct, shortDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +42,12 @@ export default async function LeadsPage() {
         title="Leads"
         subtitle="Your sales pipeline — who's in it, what it's worth, and what to do next."
         actions={
-          <Link href="/coach" className="rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-xs text-zinc-400 hover:text-white">
-            ← Dashboard
-          </Link>
+          <div className="flex items-center gap-2">
+            <AddLeadForm />
+            <Link href="/coach" className="rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-xs text-zinc-400 hover:text-white">
+              ← Dashboard
+            </Link>
+          </div>
         }
       />
 
