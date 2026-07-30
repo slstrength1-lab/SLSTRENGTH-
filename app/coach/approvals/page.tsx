@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Inbox, Clock, ShieldAlert, CheckCircle2 } from "lucide-react";
-import { getRecommendations } from "@/lib/store";
+import { getRecommendations, recommendationsReadError } from "@/lib/store";
 import * as analytics from "@/lib/analytics";
 import { PageHeader, StatCard } from "@/components/primitives";
 import { ApprovalInbox } from "@/components/ApprovalInbox";
@@ -17,6 +17,7 @@ export default async function ApprovalsPage() {
   const recs = await getRecommendations();
   const s = analytics.recommendations.summarizeRecommendations(recs);
   const ordered = analytics.recommendations.inboxOrder(recs);
+  const readError = recs.length === 0 ? recommendationsReadError() : undefined;
 
   return (
     <div className="space-y-6">
@@ -41,6 +42,12 @@ export default async function ApprovalsPage() {
         <StatCard label="Applied" value={s.applied} icon={<CheckCircle2 className="h-4 w-4" />} sub="executed into records" />
         <StatCard label="Rejected" value={s.rejected} icon={<Inbox className="h-4 w-4" />} />
       </div>
+
+      {readError && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+          <span className="font-semibold">Couldn&apos;t read the AI Recommendations database:</span> {readError}
+        </div>
+      )}
 
       <ApprovalInbox recommendations={ordered} />
     </div>

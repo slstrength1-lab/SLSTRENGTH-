@@ -17,7 +17,7 @@
  */
 
 import { cache } from "react";
-import { notion } from "./notion";
+import { notion, lastFetchErrors } from "./notion";
 import * as sample from "./data";
 import type {
   Client,
@@ -332,6 +332,11 @@ export async function getRecommendations(): Promise<Recommendation[]> {
       leadName: r.leadId ? leadName.get(r.leadId) : undefined,
     }))
     .sort((a, b) => (a.created < b.created ? 1 : -1));
+}
+
+/** Why the recommendations read fell back to empty (integration/sharing errors). */
+export function recommendationsReadError(): string | undefined {
+  return lastFetchErrors["recommendations"];
 }
 
 /** A single recommendation by id. */

@@ -414,6 +414,13 @@ async function queryAll(dataSourceId: string): Promise<Prop[]> {
   return results;
 }
 
+/**
+ * The reason the most recent read of each data source fell back to sample data
+ * (keyed by label). Lets a page surface *why* a live-mode list came back empty
+ * — usually the integration not being shared with that specific database.
+ */
+export const lastFetchErrors: Record<string, string> = {};
+
 async function fetchOrFallback<T>(
   label: string,
   dataSourceId: string,
@@ -424,12 +431,12 @@ async function fetchOrFallback<T>(
   if (!isLive) return fallback;
   try {
     const pages = await queryAll(dataSourceId);
+    delete lastFetchErrors[label];
     return pages.map(mapper);
   } catch (err) {
-    console.warn(
-      `[notion] ${label} query failed — falling back to sample data:`,
-      err instanceof Error ? err.message : err,
-    );
+    const msg = err instanceof Error ? err.message : String(err);
+    lastFetchErrors[label] = msg;
+    console.warn(`[notion] ${label} query failed — falling back to sample data:`, msg);
     return fallback;
   }
 }
