@@ -42,23 +42,36 @@ async function clientOk(req: NextRequest): Promise<boolean> {
   return Boolean(await verifyToken(req.cookies.get(CLIENT_COOKIE)?.value));
 }
 
+/**
+ * Pass the request through, but tell Netlify's CDN never to cache the response.
+ * These pages are per-session and read live Notion data; without this, Netlify
+ * serves a cached snapshot and freshly-added leads / recommendations don't show
+ * until the next deploy.
+ */
+function pass(): NextResponse {
+  const res = NextResponse.next();
+  res.headers.set("Cache-Control", "no-store, must-revalidate");
+  res.headers.set("Netlify-CDN-Cache-Control", "no-store");
+  return res;
+}
+
 export async function middleware(req: NextRequest) {
   const password = process.env.SITE_PASSWORD;
-  if (!password) return NextResponse.next(); // gates disabled (dev)
+  if (!password) return pass(); // gates disabled (dev)
 
   const { pathname } = req.nextUrl;
-  if (isPublic(pathname)) return NextResponse.next();
+  if (isPublic(pathname)) return pass();
 
   // Client portal — client OR coach session.
   if (matches(pathname, PORTAL_PAGES) || matches(pathname, PORTAL_APIS)) {
-    if ((await clientOk(req)) || (await coachOk(req, password))) return NextResponse.next();
+    if ((await clientOk(req)) || (await coachOk(req, password))) return pass();
     const url = req.nextUrl.clone();
     url.pathname = "/portal-login";
     return NextResponse.redirect(url);
   }
 
   // Coach area — coach session only.
-  if (await coachOk(req, password)) return NextResponse.next();
+  if (await coachOk(req, password)) return pass();
   const url = req.nextUrl.clone();
   url.pathname = "/login";
   if (pathname !== "/") url.searchParams.set("from", pathname);
