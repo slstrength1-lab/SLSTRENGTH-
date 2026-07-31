@@ -27,7 +27,6 @@ import {
   nutritionLogsForClient,
   coachNotesForClient,
   summarizeBusiness,
-  getSales,
 } from "@/lib/store";
 import {
   Card,
@@ -96,8 +95,6 @@ export default async function ClientDetailPage({
   ]);
 
   const business = summarizeBusiness(client, sales);
-  const _allSales = await getSales();
-  const _debug = `id=${client.id} · thisClientSales=${sales.length} · totalSales=${_allSales.length} · saleClientIds=[${_allSales.map((s) => s.clientId).slice(0, 8).join(",")}] · rendered ${new Date().toISOString()}`;
   const health = clientHealthScore(client);
   const onboarding = onboardingProgress(client);
   const activeProgram = programs.find((p) => p.status === "Active") ?? programs[0];
@@ -112,9 +109,6 @@ export default async function ClientDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="break-all rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
-        DEBUG · {_debug}
-      </div>
       {/* Back to roster */}
       <Link
         href="/coach"
