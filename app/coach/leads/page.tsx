@@ -31,6 +31,8 @@ export default async function LeadsPage() {
   const today = new Date().toISOString().slice(0, 10);
   const leads = await getLeads();
   const s = analytics.leads.summarizeLeads(leads, today);
+  const renderedAt = new Date().toISOString();
+  const debug = `${leads.length} leads · rendered ${renderedAt} · ${leads.map((l) => l.name).join(", ")}`;
   // Newest activity first: active pipeline stages before won/lost/nurture.
   const ordered = [...leads].sort(
     (a, b) => analytics.leads.STAGE_ORDER.indexOf(a.stage) - analytics.leads.STAGE_ORDER.indexOf(b.stage),
@@ -41,7 +43,7 @@ export default async function LeadsPage() {
       <PageHeader
         eyebrow="CRM"
         title="Leads"
-        subtitle="Your sales pipeline — who's in it, what it's worth, and what to do next."
+        subtitle={`Your sales pipeline — who's in it, what it's worth, and what to do next. · ${debug}`}
         actions={
           <div className="flex items-center gap-2">
             <CopyFormLinkButton />
