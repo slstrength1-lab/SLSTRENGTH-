@@ -37,13 +37,18 @@ export function BusinessModule({
   const trend = summary.monthlyTrend.map((m) => ({ x: m.month, y: m.amount }));
   const hasTrend = summary.monthlyTrend.some((m) => m.amount > 0);
   const growth = summary.revenueGrowth;
+  const perSession = client.plan === "Per Session";
 
   return (
     <div className="space-y-4">
       {/* KPI tiles */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Tile label="Lifetime revenue" value={currency(summary.lifetimeRevenue)} sub={`${summary.payments} payment${summary.payments === 1 ? "" : "s"}`} accent />
-        <Tile label="Monthly revenue" value={currency(summary.monthlyRevenue)} sub="contracted" />
+        <Tile
+          label={perSession ? "Per session" : "Monthly revenue"}
+          value={currency(summary.monthlyRevenue)}
+          sub={perSession ? "session rate" : "contracted"}
+        />
         <Tile label="Avg / month" value={currency(summary.avgMonthlyValue)} sub={`${summary.retentionMonths} mo active`} />
         <Tile
           label="Last payment"

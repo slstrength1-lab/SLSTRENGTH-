@@ -6,9 +6,16 @@
 import type { OwnerData, AnalyticsContext } from "./context";
 import { monthKey, monthKeyOffset, monthLabelOffset } from "./dates";
 
-/** Monthly recurring revenue = sum of active clients' monthly rate. */
+/**
+ * Monthly recurring revenue = sum of active clients' monthly rate. Per-session
+ * clients are excluded: their `monthlyRate` holds a per-session price, not a
+ * recurring charge, so counting it would inflate MRR. Their income still shows
+ * up in booked revenue via their logged Sales.
+ */
 export function mrr(_data: OwnerData, ctx: AnalyticsContext): number {
-  return ctx.active.reduce((n, c) => n + c.monthlyRate, 0);
+  return ctx.active
+    .filter((c) => c.plan !== "Per Session")
+    .reduce((n, c) => n + c.monthlyRate, 0);
 }
 
 /** Annual recurring revenue. */

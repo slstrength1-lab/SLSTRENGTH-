@@ -14,8 +14,9 @@ import { Plus, CreditCard, PauseCircle, XCircle, Loader2 } from "lucide-react";
  * Pause/Cancel → PATCH /api/clients/:id (Billing Status + Client Status in sync)
  */
 
-const PACKAGES = ["1:1 Coaching", "Nutrition Only", "Strength Program", "Transformation Package", "Consultation"];
-const PLANS = ["Monthly", "Quarterly", "Paid in Full", "Custom"];
+const PACKAGES = ["1:1 Coaching", "Nutrition Only", "Strength Program", "Transformation Package", "Consultation", "Personal Training Session"];
+const PLANS = ["Monthly", "Quarterly", "Paid in Full", "Per Session", "Custom"];
+const SESSION_PACKAGE = "Personal Training Session";
 const inputCls =
   "rounded-lg border border-white/[0.06] bg-ink-950/60 px-2 py-1.5 text-xs text-zinc-200 focus:border-blood-500/40 focus:outline-none focus:ring-1 focus:ring-blood-500/30";
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -33,12 +34,13 @@ export function BusinessActions({
   plan?: string;
 }) {
   const router = useRouter();
+  const perSession = (plan ?? "") === "Per Session";
   const [panel, setPanel] = useState<Panel>(null);
   const [state, setState] = useState<State>("idle");
 
-  // Log Payment fields
+  // Log Payment fields (per-session clients default to a training-session charge)
   const [amount, setAmount] = useState(String(monthlyRate || ""));
-  const [pkg, setPkg] = useState(PACKAGES[0]);
+  const [pkg, setPkg] = useState(perSession ? SESSION_PACKAGE : PACKAGES[0]);
   // Update Plan fields
   const [planSel, setPlanSel] = useState(plan ?? "Monthly");
   const [rate, setRate] = useState(String(monthlyRate || ""));
@@ -68,7 +70,7 @@ export function BusinessActions({
           clientId,
           amount: Number(amount) || 0,
           package: pkg,
-          paymentType: "Monthly",
+          paymentType: perSession || pkg === SESSION_PACKAGE ? "Per Session" : "Monthly",
           paymentStatus: "Paid",
           date: todayISO(),
         }),
@@ -131,7 +133,7 @@ export function BusinessActions({
           onClick={() => setPanel(panel === "payment" ? null : "payment")}
           className={`${btn} bg-blood-500 text-white hover:bg-blood-600`}
         >
-          <Plus className="h-3.5 w-3.5" /> Log Payment
+          <Plus className="h-3.5 w-3.5" /> {perSession ? "Log Session" : "Log Payment"}
         </button>
         <button
           onClick={() => setPanel(panel === "plan" ? null : "plan")}
@@ -178,7 +180,7 @@ export function BusinessActions({
             </select>
           </label>
           <label className="flex flex-col gap-1 text-[11px] text-zinc-500">
-            Monthly rate ($)
+            {planSel === "Per Session" ? "Session rate ($)" : "Monthly rate ($)"}
             <input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="decimal" className={inputCls} />
           </label>
           <label className="flex flex-col gap-1 text-[11px] text-zinc-500">

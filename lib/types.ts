@@ -52,7 +52,7 @@ export type LeadStage =
   | "Lost"; // additive (Leads/CRM Step 1 Notion option); Closed Won remains the convert trigger
 
 export type PaymentStatus = "Paid" | "Pending" | "Refunded" | "Failed";
-export type PaymentType = "Monthly" | "Paid in Full" | "One-time" | "Deposit";
+export type PaymentType = "Monthly" | "Paid in Full" | "One-time" | "Deposit" | "Per Session";
 
 export type ProgramType =
   | "Strength"
