@@ -60,6 +60,7 @@ export async function POST(request: Request) {
     heightUnit: "in",
     activity: (saved.activity as ClientStats["activity"]) ?? "moderate",
     goal: (saved.goal as ClientStats["goal"]) ?? "maintain",
+    bodyFatPct: Number(saved.bodyFatPct) || undefined,
   };
 
   const targets = calcTargets(stats);

@@ -14,7 +14,7 @@ const inputCls =
 const labelCls = "flex flex-col gap-1 text-[11px] uppercase tracking-wider text-zinc-500";
 
 type Macro = { calories?: number; protein?: number; carbs?: number; fat?: number; fiber?: number };
-type Targets = Macro & { tdee: number; proteinPerKg: number; goal: string; weightKg: number };
+type Targets = Macro & { tdee: number; bmr?: number; surplus?: number; proteinPerKg: number; goal: string; weightKg: number; equation?: string; warnings?: string[] };
 type PlanFood = { name: string; amount: number; unit: string; grams: number; calories?: number; protein?: number; carbs?: number; fat?: number; unresolved?: boolean };
 type PlanMeal = { name: string; foods: PlanFood[]; totals: Macro };
 type Comparison = Record<"calories" | "protein" | "carbs" | "fat", { actual: number; target: number; pct: number }>;
@@ -35,6 +35,7 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
   const [inch, setInch] = useState(s0("inch", "10"));
   const [weight, setWeight] = useState(s0("weight", "185"));
   const [weightUnit, setWeightUnit] = useState<"lb" | "kg">((saved?.weightUnit as "lb" | "kg") ?? "lb");
+  const [bodyFat, setBodyFat] = useState(s0("bodyFatPct", ""));
   const [activity, setActivity] = useState(s0("activity", "moderate"));
   const [goal, setGoal] = useState(s0("goal", "lose"));
   const [meals, setMeals] = useState(s0("meals", "4"));
@@ -58,6 +59,7 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
       heightUnit: "in" as const,
       activity,
       goal,
+      bodyFatPct: Number(bodyFat) || undefined,
     };
   }
 
@@ -114,7 +116,7 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
   async function saveToPortal() {
     if (!targets) return;
     setSaving("saving");
-    const profile = { sex, age: Number(age), ft: Number(ft), inch: Number(inch), weight: Number(weight), weightUnit, activity, goal, meals: Number(meals), prefs, avoid, targets, savedAt: new Date().toISOString() };
+    const profile = { sex, age: Number(age), ft: Number(ft), inch: Number(inch), weight: Number(weight), weightUnit, bodyFatPct: Number(bodyFat) || undefined, activity, goal, meals: Number(meals), prefs, avoid, targets, savedAt: new Date().toISOString() };
     try {
       const res = await fetch(`/api/clients/${clientId}`, {
         method: "PATCH",
@@ -163,6 +165,7 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
             <select value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as "lb" | "kg")} className={inputCls}><option value="lb">lb</option><option value="kg">kg</option></select>
           </div>
         </label>
+        <label className={labelCls}>Body fat %<input value={bodyFat} onChange={(e) => setBodyFat(e.target.value)} inputMode="decimal" placeholder="optional" className={inputCls} /></label>
         <label className={labelCls}>Activity
           <select value={activity} onChange={(e) => setActivity(e.target.value)} className={inputCls}>
             <option value="sedentary">Sedentary</option><option value="light">Light</option><option value="moderate">Moderate</option><option value="very">Very active</option><option value="athlete">Athlete</option>
@@ -200,7 +203,19 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
       {/* Targets */}
       {targets && (
         <div className="mt-4">
-          <div className="mb-2 text-[11px] uppercase tracking-wider text-zinc-600">Daily targets · {targets.goal} · {targets.proteinPerKg} g/kg protein · TDEE {targets.tdee}</div>
+          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] uppercase tracking-wider text-zinc-600">
+            <span>Daily targets · {targets.goal} · {targets.proteinPerKg} g/kg protein</span>
+            <span className="text-zinc-700">·</span>
+            <span>BMR {targets.bmr ?? "—"} → TDEE {targets.tdee}</span>
+            {typeof targets.surplus === "number" && (
+              <span className={targets.surplus > 0 ? "text-emerald-400" : targets.surplus < 0 ? "text-amber-400" : "text-zinc-500"}>
+                {targets.surplus > 0 ? `+${targets.surplus}` : targets.surplus} kcal vs TDEE
+              </span>
+            )}
+          </div>
+          {targets.equation && (
+            <div className="mb-2 text-[11px] normal-case tracking-normal text-zinc-500">Equation: {targets.equation}</div>
+          )}
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
             {macroChip("Calories", targets.calories, "kcal")}
             {macroChip("Protein", targets.protein)}
@@ -208,6 +223,16 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
             {macroChip("Fat", targets.fat)}
             {macroChip("Fiber", targets.fiber)}
           </div>
+          {targets.warnings && targets.warnings.length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              {targets.warnings.map((w, i) => (
+                <p key={i} className="flex items-start gap-1.5 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-amber-300/90">
+                  <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                  {w}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -414,6 +414,48 @@ async function main() {
     const cmp = comparePlan(t, { calories: t.calories, protein: t.protein, carbs: t.carbs, fat: t.fat });
     assert(cmp.protein.pct === 100 && cmp.calories.pct === 100, "on-target = 100%");
   });
+  await test("gain surplus is always meaningfully above TDEE (floored)", () => {
+    // Adult gainer — surplus should be max(15% TDEE, 400 kcal).
+    const t = calcTargets({ sex: "male", age: 30, weight: 90, height: 180, activity: "moderate", goal: "gain" });
+    assert(t.calories > t.tdee, "gain calories strictly above TDEE");
+    near(t.surplus, Math.max(t.tdee * 0.15, 400), 2, "surplus = max(15% TDEE, 400)");
+    // Small client — the 400 kcal floor guarantees a real surplus.
+    const small = calcTargets({ sex: "female", age: 30, weight: 50, height: 158, activity: "sedentary", goal: "gain" });
+    assert(small.surplus >= 400, "small client still gets ≥400 kcal surplus");
+  });
+  await test("adolescent uses Schofield + growth allowance, not Mifflin", () => {
+    // 14 y/o male football player, 5'8\" 150 lb, very active, gaining.
+    const teen = calcTargets({ sex: "male", age: 14, weight: 150, weightUnit: "lb", height: 68, heightUnit: "in", activity: "very", goal: "gain" });
+    assert(teen.equation.startsWith("Schofield"), "teen → Schofield equation");
+    // Schofield 10–18 male: 17.686·kg + 658.2 (+25 growth folded into TDEE).
+    const kg = 150 * 0.45359237;
+    near(teen.bmr, 17.686 * kg + 658.2, 2, "Schofield BMR");
+    assert(teen.calories > teen.tdee && teen.calories > 3000, "gaining teen athlete lands well above 3000 kcal");
+    // Same person via the OLD adult equation would be lower — prove we're not under-feeding.
+    const asAdultMifflin = 10 * kg + 6.25 * 172.72 - 5 * 14 + 5;
+    assert(teen.bmr > asAdultMifflin, "Schofield BMR > adult Mifflin for this teen");
+    assert(teen.warnings.some((w) => w.includes("under 18")), "adolescent warning present");
+  });
+  await test("adolescent fat-loss is flagged, not silently applied", () => {
+    const teen = calcTargets({ sex: "male", age: 15, weight: 160, weightUnit: "lb", height: 70, heightUnit: "in", activity: "moderate", goal: "lose" });
+    assert(teen.warnings.some((w) => w.toLowerCase().includes("deficit")), "teen deficit warning present");
+    assert(teen.calories >= teen.bmr, "never below BMR");
+  });
+  await test("body-fat % → Cunningham for athletes, Katch–McArdle otherwise", () => {
+    const athlete = calcTargets({ sex: "male", age: 26, weight: 90, height: 183, activity: "athlete", goal: "maintain", bodyFatPct: 12 });
+    const lbm = 90 * (1 - 0.12);
+    assert(athlete.equation.startsWith("Cunningham"), "athlete + BF% → Cunningham");
+    near(athlete.bmr, 500 + 22 * lbm, 2, "Cunningham RMR = 500 + 22·LBM");
+    const general = calcTargets({ sex: "male", age: 26, weight: 90, height: 183, activity: "light", goal: "maintain", bodyFatPct: 25 });
+    const lbm2 = 90 * (1 - 0.25);
+    assert(general.equation.startsWith("Katch"), "non-athlete + BF% → Katch–McArdle");
+    near(general.bmr, 370 + 21.6 * lbm2, 2, "Katch–McArdle RMR = 370 + 21.6·LBM");
+  });
+  await test("adult fat-loss floors at BMR", () => {
+    // Contrived: sedentary so a 20% cut would approach BMR; ensure the floor holds.
+    const t = calcTargets({ sex: "female", age: 40, weight: 55, height: 160, activity: "sedentary", goal: "lose" });
+    assert(t.calories >= t.bmr, "cut never below BMR");
+  });
 
   /* ---- report ---------------------------------------------------------- */
   const passed = results.filter((r) => r.ok).length;
