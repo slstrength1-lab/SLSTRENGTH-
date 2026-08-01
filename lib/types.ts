@@ -114,6 +114,10 @@ export interface Client {
   plan?: string;
   nextPaymentDate?: string; // ISO
   cancelledDate?: string; // ISO — set when membership is cancelled (churn/retention)
+  /** Saved nutrition planning inputs (JSON: stats + prefs + latest targets) — lets
+   *  re-planning need only the new weight. And the last generated plan (text). */
+  nutritionProfile?: string;
+  mealPlan?: string;
   /** Nutrition rollups (Notion computes these from the Nutrition log). */
   avgNutritionCompliance?: number; // 0-100
   lastNutritionLog?: string; // ISO

@@ -1,18 +1,42 @@
 import { Beef, Wheat, Droplet, GlassWater, Info } from "lucide-react";
 import { getCurrentClient, nutritionForClient } from "@/lib/store";
 import { Card, PageHeader, SectionTitle, Ring, ProgressBar, EmptyState } from "@/components/primitives";
+import { PortalMealPlan } from "@/components/PortalMealPlan";
+
+export const dynamic = "force-dynamic";
 
 export default async function NutritionPage() {
   const client = await getCurrentClient();
   const plan = nutritionForClient(client.id);
 
+  // Coach-generated meal plan saved on the client (real DB-grounded plan).
+  let savedTargets: { calories: number; protein: number; carbs: number; fat: number; fiber?: number } | null = null;
+  let weightUnit = "lb";
+  let hasProfile = false;
+  try {
+    const prof = client.nutritionProfile ? (JSON.parse(client.nutritionProfile) as Record<string, unknown>) : null;
+    if (prof) {
+      hasProfile = true;
+      weightUnit = (prof.weightUnit as string) || "lb";
+      savedTargets = (prof.targets as typeof savedTargets) ?? null;
+    }
+  } catch {
+    /* malformed profile */
+  }
+  const hasSaved = Boolean(client.mealPlan || hasProfile);
+  const savedPlanBlock = hasSaved ? (
+    <PortalMealPlan initialPlan={client.mealPlan} initialTargets={savedTargets} weightUnit={weightUnit} hasProfile={hasProfile} />
+  ) : null;
+
   if (!plan) {
     return (
       <div className="space-y-6">
         <PageHeader eyebrow="Nutrition" title="Nutrition" />
-        <Card className="p-6">
-          <EmptyState title="No nutrition plan yet" hint="Your coach will set your targets after onboarding." />
-        </Card>
+        {savedPlanBlock ?? (
+          <Card className="p-6">
+            <EmptyState title="No nutrition plan yet" hint="Your coach will set your targets after onboarding." />
+          </Card>
+        )}
       </div>
     );
   }
@@ -36,6 +60,8 @@ export default async function NutritionPage() {
         title="Today's targets"
         subtitle={plan.strategy}
       />
+
+      {savedPlanBlock}
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Calories ring */}

@@ -163,6 +163,8 @@ function mapClient(page: Prop): Client {
     plan: select(p["Plan"]) ?? undefined,
     nextPaymentDate: dateStr(p["Next Payment Date"]) ?? undefined,
     cancelledDate: dateStr(p["Cancelled Date"]) ?? undefined,
+    nutritionProfile: text(p["Nutrition Profile"]) || undefined,
+    mealPlan: text(p["Meal Plan"]) || undefined,
     avgNutritionCompliance: number(p["Avg Nutrition Compliance"]) ?? undefined,
     lastNutritionLog: dateStr(p["Last Nutrition Log"]) ?? undefined,
     birthday: dateStr(p["Birthday"]) ?? undefined,
@@ -1107,6 +1109,8 @@ export interface ClientPatch {
   status?: ClientStatus;
   nextPaymentDate?: string;
   cancelledDate?: string;
+  nutritionProfile?: string;
+  mealPlan?: string;
 }
 
 async function updateClient(id: string, patch: ClientPatch): Promise<Client> {
@@ -1120,6 +1124,8 @@ async function updateClient(id: string, patch: ClientPatch): Promise<Client> {
     if (patch.status !== undefined) c.status = patch.status;
     if (patch.nextPaymentDate !== undefined) c.nextPaymentDate = patch.nextPaymentDate;
     if (patch.cancelledDate !== undefined) c.cancelledDate = patch.cancelledDate;
+    if (patch.nutritionProfile !== undefined) c.nutritionProfile = patch.nutritionProfile;
+    if (patch.mealPlan !== undefined) c.mealPlan = patch.mealPlan;
     return c;
   };
   if (!isLive) return sampleUpdate();
@@ -1131,6 +1137,9 @@ async function updateClient(id: string, patch: ClientPatch): Promise<Client> {
     if (patch.status !== undefined) props["Status"] = wSel(patch.status);
     if (patch.nextPaymentDate !== undefined) props["Next Payment Date"] = wDate(patch.nextPaymentDate);
     if (patch.cancelledDate !== undefined) props["Cancelled Date"] = wDate(patch.cancelledDate);
+    // Notion rich_text caps at 2000 chars per value — keep well under.
+    if (patch.nutritionProfile !== undefined) props["Nutrition Profile"] = wRich(patch.nutritionProfile.slice(0, 1900));
+    if (patch.mealPlan !== undefined) props["Meal Plan"] = wRich(patch.mealPlan.slice(0, 1900));
     const client = getClient();
     await client.pages.update({ page_id: id, properties: props } as Prop);
     return mapClient(await client.pages.retrieve({ page_id: id } as Prop));

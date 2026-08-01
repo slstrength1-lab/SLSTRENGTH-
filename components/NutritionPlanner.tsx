@@ -20,18 +20,27 @@ type PlanMeal = { name: string; foods: PlanFood[]; totals: Macro };
 type Comparison = Record<"calories" | "protein" | "carbs" | "fat", { actual: number; target: number; pct: number }>;
 type Plan = { meals: PlanMeal[]; dayTotals: Macro; comparison: Comparison; notes?: string; unresolved: string[] };
 
-export function NutritionPlanner({ clientName }: { clientName: string }) {
-  const [sex, setSex] = useState("male");
-  const [age, setAge] = useState("30");
-  const [ft, setFt] = useState("5");
-  const [inch, setInch] = useState("10");
-  const [weight, setWeight] = useState("185");
-  const [weightUnit, setWeightUnit] = useState<"lb" | "kg">("lb");
-  const [activity, setActivity] = useState("moderate");
-  const [goal, setGoal] = useState("lose");
-  const [meals, setMeals] = useState("4");
-  const [prefs, setPrefs] = useState("");
-  const [avoid, setAvoid] = useState("");
+export function NutritionPlanner({ clientId, clientName, initialProfile }: { clientId: string; clientName: string; initialProfile?: string }) {
+  const saved = (() => {
+    try {
+      return initialProfile ? (JSON.parse(initialProfile) as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const s0 = (k: string, d: string) => (saved && saved[k] != null ? String(saved[k]) : d);
+  const [sex, setSex] = useState(s0("sex", "male"));
+  const [age, setAge] = useState(s0("age", "30"));
+  const [ft, setFt] = useState(s0("ft", "5"));
+  const [inch, setInch] = useState(s0("inch", "10"));
+  const [weight, setWeight] = useState(s0("weight", "185"));
+  const [weightUnit, setWeightUnit] = useState<"lb" | "kg">((saved?.weightUnit as "lb" | "kg") ?? "lb");
+  const [activity, setActivity] = useState(s0("activity", "moderate"));
+  const [goal, setGoal] = useState(s0("goal", "lose"));
+  const [meals, setMeals] = useState(s0("meals", "4"));
+  const [prefs, setPrefs] = useState(s0("prefs", ""));
+  const [avoid, setAvoid] = useState(s0("avoid", ""));
+  const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
 
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [targets, setTargets] = useState<Targets | null>(null);
@@ -102,6 +111,24 @@ export function NutritionPlanner({ clientName }: { clientName: string }) {
     }
   }
 
+  async function saveToPortal() {
+    if (!targets) return;
+    setSaving("saving");
+    const profile = { sex, age: Number(age), ft: Number(ft), inch: Number(inch), weight: Number(weight), weightUnit, activity, goal, meals: Number(meals), prefs, avoid, targets, savedAt: new Date().toISOString() };
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nutritionProfile: JSON.stringify(profile), mealPlan: planText() }),
+      });
+      if (!res.ok) throw new Error();
+      setSaving("saved");
+      setTimeout(() => setSaving("idle"), 2500);
+    } catch {
+      setSaving("idle");
+    }
+  }
+
   const macroChip = (label: string, v?: number, unit = "g") => (
     <div className="rounded-lg border border-white/[0.06] bg-ink-900/60 px-3 py-2">
       <div className="text-[10px] uppercase tracking-wider text-zinc-600">{label}</div>
@@ -159,6 +186,12 @@ export function NutritionPlanner({ clientName }: { clientName: string }) {
         {targets && (
           <button onClick={copy} className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white">
             {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />} Copy for client
+          </button>
+        )}
+        {targets && (
+          <button onClick={saveToPortal} disabled={saving !== "idle"} className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white disabled:opacity-60">
+            {saving === "saved" ? <Check className="h-4 w-4 text-emerald-400" /> : saving === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Salad className="h-4 w-4" />}
+            {saving === "saved" ? "Saved to portal" : "Save to client's portal"}
           </button>
         )}
         {state === "error" && <span className="text-xs text-blood-400">{msg}</span>}

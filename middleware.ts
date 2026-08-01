@@ -14,7 +14,7 @@ import { CLIENT_COOKIE, verifyToken } from "@/lib/auth/session";
  * Public: the two login screens and the endpoints that authenticate them.
  */
 const PORTAL_PAGES = ["/dashboard", "/training", "/nutrition", "/checkins", "/progress", "/messages"];
-const PORTAL_APIS = ["/api/checkins"];
+const PORTAL_APIS = ["/api/checkins", "/api/portal/replan"];
 
 function matches(pathname: string, roots: string[]): boolean {
   return roots.some((r) => pathname === r || pathname.startsWith(r + "/"));

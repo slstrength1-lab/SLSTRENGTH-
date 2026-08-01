@@ -533,7 +533,7 @@ export default async function ClientDetailPage({
             <Salad className="h-4 w-4 text-blood-500" /> Nutrition Plan
           </span>
         </SectionTitle>
-        <NutritionPlanner clientName={client.name} />
+        <NutritionPlanner clientId={client.id} clientName={client.name} initialProfile={client.nutritionProfile} />
       </Card>
     </div>
   );
