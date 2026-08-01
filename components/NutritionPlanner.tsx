@@ -42,9 +42,15 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
   const [prefs, setPrefs] = useState(s0("prefs", ""));
   const [avoid, setAvoid] = useState(s0("avoid", ""));
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveErr, setSaveErr] = useState("");
+  // True once any stat is edited after the last generate/save — so the coach sees
+  // that what's on screen no longer matches what's stored.
+  const [dirty, setDirty] = useState(false);
 
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
-  const [targets, setTargets] = useState<Targets | null>(null);
+  // If the client already has a saved plan, seed the targets so Save/Copy are
+  // available immediately (no need to regenerate just to re-save an edit).
+  const [targets, setTargets] = useState<Targets | null>((saved?.targets as Targets) ?? null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [msg, setMsg] = useState("");
   const [copied, setCopied] = useState(false);
@@ -63,6 +69,14 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
     };
   }
 
+  // Deterministic targets from the CURRENT form fields (no AI key needed).
+  async function computeTargets(): Promise<Targets> {
+    const tRes = await fetch("/api/nutrition/targets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(stats()) });
+    const tJson = await tRes.json();
+    if (!tRes.ok || !tJson.ok) throw new Error(tJson.error || "Could not compute targets");
+    return tJson.targets as Targets;
+  }
+
   async function generate() {
     setState("loading");
     setMsg("");
@@ -70,10 +84,9 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
     setTargets(null);
     try {
       // 1) Targets — deterministic, always works (no keys needed).
-      const tRes = await fetch("/api/nutrition/targets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(stats()) });
-      const tJson = await tRes.json();
-      if (!tRes.ok || !tJson.ok) throw new Error(tJson.error || "Could not compute targets");
-      setTargets(tJson.targets);
+      const t = await computeTargets();
+      setTargets(t);
+      setDirty(false);
 
       // 2) AI meal plan — grounded in the nutrition DB (best effort).
       const pRes = await fetch("/api/nutrition/plan", {
@@ -91,9 +104,9 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
     }
   }
 
-  function planText(): string {
-    if (!targets) return "";
-    const L: string[] = [`${clientName} — Nutrition Plan`, `Daily targets: ${targets.calories} kcal · ${targets.protein}g protein · ${targets.carbs}g carbs · ${targets.fat}g fat · ~${targets.fiber}g fiber`, ""];
+  function planText(t: Targets | null = targets): string {
+    if (!t) return "";
+    const L: string[] = [`${clientName} — Nutrition Plan`, `Daily targets: ${t.calories} kcal · ${t.protein}g protein · ${t.carbs}g carbs · ${t.fat}g fat · ~${t.fiber}g fiber`, ""];
     plan?.meals.forEach((m) => {
       L.push(`${m.name} — ${m.totals.calories ?? 0} kcal · ${m.totals.protein ?? 0}P/${m.totals.carbs ?? 0}C/${m.totals.fat ?? 0}F`);
       m.foods.forEach((f) => L.push(`  • ${f.name} — ${f.amount} ${f.unit} (${f.grams} g)${f.unresolved ? " [check]" : ""}`));
@@ -114,20 +127,27 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
   }
 
   async function saveToPortal() {
-    if (!targets) return;
     setSaving("saving");
-    const profile = { sex, age: Number(age), ft: Number(ft), inch: Number(inch), weight: Number(weight), weightUnit, bodyFatPct: Number(bodyFat) || undefined, activity, goal, meals: Number(meals), prefs, avoid, targets, savedAt: new Date().toISOString() };
+    setSaveErr("");
     try {
+      // Always recompute targets from the CURRENT fields, so edited age/weight are
+      // saved with matching macros — never a stale generate.
+      const t = await computeTargets();
+      setTargets(t);
+      const profile = { sex, age: Number(age), ft: Number(ft), inch: Number(inch), weight: Number(weight), weightUnit, bodyFatPct: Number(bodyFat) || undefined, activity, goal, meals: Number(meals), prefs, avoid, targets: t, savedAt: new Date().toISOString() };
       const res = await fetch(`/api/clients/${clientId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nutritionProfile: JSON.stringify(profile), mealPlan: planText() }),
+        body: JSON.stringify({ nutritionProfile: JSON.stringify(profile), mealPlan: planText(t) }),
       });
-      if (!res.ok) throw new Error();
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.ok === false) throw new Error(j.error || "Save failed — try again.");
+      setDirty(false);
       setSaving("saved");
       setTimeout(() => setSaving("idle"), 2500);
-    } catch {
+    } catch (e) {
       setSaving("idle");
+      setSaveErr((e as Error).message || "Could not save.");
     }
   }
 
@@ -147,8 +167,8 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
         <Salad className="h-3.5 w-3.5 text-blood-500" /> Nutrition Plan
       </div>
 
-      {/* Stats form */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+      {/* Stats form — any edit marks the plan dirty (React change events bubble). */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6" onChange={() => setDirty(true)}>
         <label className={labelCls}>Sex
           <select value={sex} onChange={(e) => setSex(e.target.value)} className={inputCls}><option value="male">Male</option><option value="female">Female</option></select>
         </label>
@@ -191,13 +211,13 @@ export function NutritionPlanner({ clientId, clientName, initialProfile }: { cli
             {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />} Copy for client
           </button>
         )}
-        {targets && (
-          <button onClick={saveToPortal} disabled={saving !== "idle"} className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white disabled:opacity-60">
-            {saving === "saved" ? <Check className="h-4 w-4 text-emerald-400" /> : saving === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Salad className="h-4 w-4" />}
-            {saving === "saved" ? "Saved to portal" : "Save to client's portal"}
-          </button>
-        )}
+        <button onClick={saveToPortal} disabled={saving === "saving"} className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white disabled:opacity-60">
+          {saving === "saved" ? <Check className="h-4 w-4 text-emerald-400" /> : saving === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Salad className="h-4 w-4" />}
+          {saving === "saved" ? "Saved to portal" : "Save to client's portal"}
+        </button>
+        {dirty && saving !== "saved" && <span className="text-[11px] text-amber-400/90">Unsaved changes</span>}
         {state === "error" && <span className="text-xs text-blood-400">{msg}</span>}
+        {saveErr && <span className="text-xs text-blood-400">{saveErr}</span>}
       </div>
 
       {/* Targets */}
