@@ -43,6 +43,18 @@ export { type CacheStore, CACHE_TTL, cacheKey } from "./cache/store";
 // recipes / totals
 export { analyzeRecipe, resolveIngredient, ingredientGrams, sumProfiles } from "./recipe";
 
+// planning (macro targets — pure, deterministic)
+export {
+  calcTargets,
+  splitAcrossMeals,
+  comparePlan,
+  type ClientStats,
+  type MacroTargets,
+  type Goal,
+  type Activity,
+  type Sex,
+} from "./planning";
+
 // pure helpers
 export { scaleProfile, addProfiles, multiplyProfile, roundProfile, toPer100g, num } from "./normalize";
 export { toGrams, gramsToOz, ozToGrams, lbToKg, kgToLb, isMass, isVolume } from "./units";

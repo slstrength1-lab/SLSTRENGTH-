@@ -18,6 +18,7 @@ import { FatSecretProvider } from "../lib/nutrition/providers/fatsecret";
 import { NutritionService } from "../lib/nutrition/service";
 import { analyzeRecipe, ingredientGrams, sumProfiles } from "../lib/nutrition/recipe";
 import { nutritionConfigStatus } from "../lib/nutrition/config";
+import { calcTargets, splitAcrossMeals, comparePlan } from "../lib/nutrition/planning";
 import { InMemoryFoodMemory } from "../lib/nutrition/history";
 import type { NutritionProvider } from "../lib/nutrition/providers/provider";
 import type { Capability, FoodItem } from "../lib/nutrition/types";
@@ -385,6 +386,33 @@ async function main() {
     for (const id of ["a", "b", "c", "d"]) await m.recordRecent("u1", { ...food(id), id: `${id}:1` });
     const recents = await m.listRecent("u1");
     assert(recents.length === 3 && recents[0].id === "d:1", "recents capped + newest first");
+  });
+
+  group("Planning (macro targets)");
+  await test("Mifflin–St Jeor + goal split", () => {
+    // 90 kg male, 180 cm, 30 y, moderate, cut
+    const t = calcTargets({ sex: "male", age: 30, weight: 90, height: 180, activity: "moderate", goal: "lose" });
+    near(t.bmr, 1880, 2, "BMR"); // 10*90 + 6.25*180 - 5*30 + 5 = 1880
+    near(t.tdee, 2914, 5, "TDEE = BMR*1.55");
+    near(t.calories, 2331, 5, "cut = TDEE*0.8");
+    near(t.protein, 216, 1, "2.4 g/kg protein");
+    assert(t.carbs > 0 && t.fat >= 0.6 * 90, "fat floor + carbs fill remainder");
+    // macro calories should reconcile to total (within rounding)
+    near(t.protein * 4 + t.carbs * 4 + t.fat * 9, t.calories, 12, "macros ≈ calories");
+  });
+  await test("lb/in units + maintain", () => {
+    const t = calcTargets({ sex: "female", age: 28, weight: 150, weightUnit: "lb", height: 65, heightUnit: "in", activity: "light", goal: "maintain" });
+    near(t.weightKg, 68, 0.5, "lb→kg");
+    near(t.protein, 136, 2, "2.0 g/kg");
+    assert(Math.abs(t.calories - t.tdee) < 2, "maintain ≈ TDEE");
+  });
+  await test("split + compare", () => {
+    const t = calcTargets({ sex: "male", age: 25, weight: 80, height: 175, activity: "very", goal: "gain" });
+    const meals = splitAcrossMeals(t, 4);
+    assert(meals.length === 4, "4 meals");
+    near(meals.reduce((n, m) => n + m.protein, 0), t.protein, 4, "meal protein sums to target");
+    const cmp = comparePlan(t, { calories: t.calories, protein: t.protein, carbs: t.carbs, fat: t.fat });
+    assert(cmp.protein.pct === 100 && cmp.calories.pct === 100, "on-target = 100%");
   });
 
   /* ---- report ---------------------------------------------------------- */
