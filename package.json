@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "next lint",
     "verify:notion": "node scripts/verify-notion.mjs",
-    "load:program": "tsx scripts/load-program-template.ts"
+    "load:program": "tsx scripts/load-program-template.ts",
+    "test:nutrition": "tsx scripts/nutrition-test.ts",
+    "nutrition:check": "tsx scripts/nutrition-live-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
