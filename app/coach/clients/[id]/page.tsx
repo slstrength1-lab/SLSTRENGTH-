@@ -18,6 +18,7 @@ import {
   Activity,
   ExternalLink,
   Database,
+  Salad,
 } from "lucide-react";
 import {
   getClientById,
@@ -43,6 +44,7 @@ import { LineChart } from "@/components/LineChart";
 import { ClientIntelligence } from "@/components/ClientIntelligence";
 import { OnboardingCard } from "@/components/OnboardingCard";
 import { RunAgentButton } from "@/components/RunAgentButton";
+import { NutritionPlanner } from "@/components/NutritionPlanner";
 import { ClientPortalLink } from "@/components/ClientPortalLink";
 import { ProgramStructure } from "@/components/ProgramStructure";
 import { NutritionModule } from "@/components/NutritionModule";
@@ -522,6 +524,16 @@ export default async function ClientDetailPage({
         </SectionTitle>
         <BusinessModule client={client} summary={business} sales={sales} />
         <BusinessActions clientId={client.id} monthlyRate={client.monthlyRate} plan={client.plan} />
+      </Card>
+
+      {/* Nutrition Plan — targets + AI meal plan grounded in the nutrition DB */}
+      <Card className="p-5">
+        <SectionTitle>
+          <span className="flex items-center gap-2">
+            <Salad className="h-4 w-4 text-blood-500" /> Nutrition Plan
+          </span>
+        </SectionTitle>
+        <NutritionPlanner clientName={client.name} />
       </Card>
     </div>
   );
