@@ -50,6 +50,7 @@ import { ProgramStructure } from "@/components/ProgramStructure";
 import { NutritionModule } from "@/components/NutritionModule";
 import { BusinessModule } from "@/components/BusinessModule";
 import { BusinessActions } from "@/components/BusinessActions";
+import { PaymentPanel } from "@/components/PaymentPanel";
 import { CoachNotes } from "@/components/CoachNotes";
 import {
   currency,
@@ -524,6 +525,9 @@ export default async function ClientDetailPage({
         </SectionTitle>
         <BusinessModule client={client} summary={business} sales={sales} />
         <BusinessActions clientId={client.id} monthlyRate={client.monthlyRate} plan={client.plan} />
+        <div className="mt-4">
+          <PaymentPanel variant="coach" defaultAmount={client.monthlyRate} clientName={client.name} note={`SL Strength — ${client.name}`} />
+        </div>
       </Card>
 
       {/* Nutrition Plan — targets + AI meal plan grounded in the nutrition DB */}

@@ -27,6 +27,7 @@ import {
 } from "@/components/primitives";
 import { WeeklyPriorities } from "@/components/WeeklyPriorities";
 import { LineChart } from "@/components/LineChart";
+import { PaymentPanel } from "@/components/PaymentPanel";
 import { riskClasses, shortDate, relativeDate } from "@/lib/format";
 
 export default async function DashboardPage() {
@@ -252,6 +253,9 @@ export default async function DashboardPage() {
           </p>
         </Card>
       </div>
+
+      {/* Make a payment — Venmo / Cash App (renders only when handles are configured) */}
+      <PaymentPanel variant="client" defaultAmount={client.monthlyRate} note="SL Strength coaching" />
     </div>
   );
 }
