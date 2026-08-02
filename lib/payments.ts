@@ -22,10 +22,15 @@ export interface PaymentHandles {
 
 const clean = (v: string | undefined, strip: RegExp) => (v || "").trim().replace(strip, "");
 
-/** Read configured handles from the environment (server-side). */
+// SL Strength's live handles — used when no env override is set, so the Pay card
+// works on deploy without extra config. Public handles, not secrets.
+const DEFAULT_VENMO = "Shane-Lanteigne";
+const DEFAULT_CASHAPP = "slstrength";
+
+/** Read configured handles (env override → default). Server-side. */
 export function paymentHandles(): PaymentHandles {
-  const venmo = clean(process.env.VENMO_HANDLE, /^@/);
-  const cashApp = clean(process.env.CASHAPP_CASHTAG, /^\$/);
+  const venmo = clean(process.env.VENMO_HANDLE, /^@/) || DEFAULT_VENMO;
+  const cashApp = clean(process.env.CASHAPP_CASHTAG, /^\$/) || DEFAULT_CASHAPP;
   return { venmo: venmo || undefined, cashApp: cashApp || undefined };
 }
 
