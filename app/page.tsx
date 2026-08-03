@@ -20,12 +20,15 @@ import { APPLICATION_FORM_URL, SITE_URL } from "@/lib/links";
 /* SEO — this is the public page that should surface on a name search. */
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Shane Lanteigne — Online Strength & Nutrition Coach | SL Strength",
+  title: "Shane Lanteigne — Online Strength & Nutrition Coach (CSCS) | SL Strength",
   description:
-    "1:1 online strength coaching with Shane Lanteigne. Custom training, real macro-based nutrition, weekly check-ins, and your own client app. Apply for coaching.",
+    "1:1 online strength coaching with Shane Lanteigne, NSCA-CSCS with 13 years developing college & pro athletes (Arkansas State, Miami Marlins org, IMG Academy). Custom training, real macro-based nutrition, and weekly accountability. Apply for coaching.",
   keywords: [
     "Shane Lanteigne",
     "SL Strength",
+    "CSCS",
+    "SCCC",
+    "strength and conditioning coach",
     "online strength coach",
     "personal trainer",
     "online coaching",
@@ -108,6 +111,9 @@ export default function Home() {
             change their body composition — with custom training, real nutrition,
             and week-to-week accountability, all in one app.
           </p>
+          <p className="mt-4 text-sm font-medium text-zinc-500">
+            NSCA-CSCS · CSCCA-SCCC · 13 years developing college &amp; pro athletes
+          </p>
           <div className="mt-9 flex flex-wrap items-center gap-4">
             <ApplyButton>
               Apply for coaching <ArrowRight className="h-4 w-4" />
@@ -173,18 +179,29 @@ export default function Home() {
             <div>
               <div className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-blood-500">About your coach</div>
               <h2 className="text-2xl font-bold sm:text-3xl">Shane Lanteigne</h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {["13 years coaching", "NSCA · CSCS", "CSCCA · SCCC", "College & Pro experience"].map((c) => (
+                  <span key={c} className="rounded-full border border-blood-500/30 bg-blood-500/10 px-3 py-1 text-xs font-medium text-blood-400">
+                    {c}
+                  </span>
+                ))}
+              </div>
               <p className="mt-4 max-w-2xl text-zinc-400">
-                I started SL Strength on a simple belief: most people don&apos;t need
-                another crash diet or a random workout off the internet — they need
-                a real plan and someone who holds them to it. My coaching is built
-                on the fundamentals that actually move the needle: progressive
-                overload, honest nutrition, and consistency you can sustain.
+                I&apos;m a strength &amp; conditioning coach with 13 years in the field,
+                certified through the NSCA (CSCS) and the CSCCA (SCCC). I&apos;ve spent
+                my career developing college and professional athletes — Saint Leo
+                University, the Miami Marlins organization, Southwest Baptist
+                University, IMG Academy, and Lincoln University — and today I&apos;m the
+                Director of Men&apos;s Basketball Performance at Arkansas State
+                University.
               </p>
               <p className="mt-4 max-w-2xl text-zinc-400">
-                Whether you&apos;re training online or in person with me, you get the
-                same thing: a program made for you, nutrition targets grounded in
-                real data, and a coach who&apos;s paying attention every week. No fluff,
-                no shortcuts — just steady, earned progress.
+                That&apos;s the same standard I bring to your training. My coaching is
+                built on the fundamentals that actually move the needle: progressive
+                overload, honest nutrition, and consistency you can sustain. Online
+                or in person, you get a program made for you, targets grounded in
+                real data, and a coach paying attention every week. No fluff, no
+                shortcuts — just steady, earned progress.
               </p>
             </div>
           </div>
