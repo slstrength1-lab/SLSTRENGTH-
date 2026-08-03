@@ -1,5 +1,7 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
+import coachPhoto from "@/public/coach.jpg";
 import {
   ArrowRight,
   Dumbbell,
@@ -39,11 +41,13 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: "SL Strength",
     type: "website",
+    images: [{ url: "/coach.jpg", width: 900, height: 1125, alt: "Shane Lanteigne — SL Strength" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Shane Lanteigne — Online Strength & Nutrition Coach",
     description: "1:1 online strength coaching. Apply for coaching with SL Strength.",
+    images: ["/coach.jpg"],
   },
 };
 
@@ -156,8 +160,15 @@ export default function Home() {
         {/* About */}
         <section className="border-t border-white/[0.06] py-16">
           <div className="grid gap-8 lg:grid-cols-[auto_1fr] lg:items-center">
-            <div className="grid h-40 w-40 place-items-center rounded-3xl bg-gradient-to-br from-blood-500 to-blood-700 shadow-glow ring-1 ring-inset ring-white/20">
-              <span className="text-5xl font-black tracking-tight text-white">SL</span>
+            <div className="relative h-64 w-52 shrink-0 overflow-hidden rounded-3xl shadow-glow ring-1 ring-inset ring-white/15">
+              <Image
+                src={coachPhoto}
+                alt="Shane Lanteigne, SL Strength coach"
+                fill
+                sizes="(min-width: 1024px) 13rem, 60vw"
+                placeholder="blur"
+                className="object-cover"
+              />
             </div>
             <div>
               <div className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-blood-500">About your coach</div>
