@@ -21,10 +21,11 @@ function matches(pathname: string, roots: string[]): boolean {
 }
 
 function isPublic(pathname: string): boolean {
-  // Only the two login screens and their auth endpoints are public. The
-  // homepage is treated as coach area so the whole site locks; clients reach
-  // their portal via their magic link (→ /dashboard), not the homepage.
+  // The public marketing landing page (/) and the two login screens + their auth
+  // endpoints are open. The rest of the site (coach area + client portal) stays
+  // gated; clients reach their portal via their magic link (→ /dashboard).
   return (
+    pathname === "/" ||
     pathname === "/login" ||
     pathname === "/portal-login" ||
     pathname === "/api/login" ||

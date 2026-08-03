@@ -2,16 +2,14 @@
 
 import { useState } from "react";
 import { Copy, Check, ExternalLink } from "lucide-react";
+import { APPLICATION_FORM_URL as FORM_URL } from "@/lib/links";
 
 /**
  * Coach-side shortcut to the public lead application form. Copies the form URL
  * to the clipboard (with a brief "Copied!" confirmation) and offers a quick
- * open-in-new-tab. The URL is configurable via NEXT_PUBLIC_APPLICATION_FORM_URL
- * and falls back to the live SL Strength application form.
+ * open-in-new-tab. The URL is the shared APPLICATION_FORM_URL
+ * (NEXT_PUBLIC_APPLICATION_FORM_URL, falling back to the live SL Strength form).
  */
-const FORM_URL =
-  process.env.NEXT_PUBLIC_APPLICATION_FORM_URL ||
-  "https://docs.google.com/forms/d/e/1FAIpQLSeYZML0pn7VL76YDYriiuuEosYS1dSX3Naz-rF9Zt5JGYAeYw/viewform";
 
 export function CopyFormLinkButton() {
   const [copied, setCopied] = useState(false);
