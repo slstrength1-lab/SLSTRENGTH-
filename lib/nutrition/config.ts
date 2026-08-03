@@ -46,7 +46,7 @@ export function providerConfigFromEnv(deps: HttpDeps = {}): ProviderConfig {
     usdaApiKey: env("USDA_FDC_API_KEY"),
     fatSecretClientId: env("FATSECRET_CLIENT_ID"),
     fatSecretClientSecret: env("FATSECRET_CLIENT_SECRET"),
-    userAgent: env("NUTRITION_USER_AGENT") || "SLStrengthOS-Nutrition/1.0 (+https://slstrength.netlify.app)",
+    userAgent: env("NUTRITION_USER_AGENT") || "SLStrengthOS-Nutrition/1.0 (+https://slstrength.fit)",
     ...deps,
   };
 }

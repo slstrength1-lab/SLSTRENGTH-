@@ -8,4 +8,4 @@ export const APPLICATION_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSeYZML0pn7VL76YDYriiuuEosYS1dSX3Naz-rF9Zt5JGYAeYw/viewform";
 
 /** Canonical site URL (for metadata / sitemap). Override with NEXT_PUBLIC_SITE_URL. */
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://slstrength.netlify.app";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://slstrength.fit";
