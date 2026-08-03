@@ -10,7 +10,10 @@ export const dynamic = "force-dynamic";
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const from = params.get("from") || "/";
+  // Default into the coach area (not "/", which is now the public landing page).
+  // Only honor same-origin relative paths to avoid an open redirect.
+  const rawFrom = params.get("from") || "/coach";
+  const from = rawFrom.startsWith("/") && !rawFrom.startsWith("//") ? rawFrom : "/coach";
   const [password, setPassword] = useState("");
   const [state, setState] = useState<"idle" | "checking" | "error">("idle");
 

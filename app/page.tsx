@@ -229,7 +229,8 @@ export default function Home() {
           <Brand href="/" compact />
           <div className="flex items-center gap-5">
             <a href={APPLICATION_FORM_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white">Apply</a>
-            <Link href="/login" className="hover:text-white">Coach login</Link>
+            <Link href="/portal-login" className="hover:text-white">Client login</Link>
+            <Link href="/coach" className="hover:text-white">Coach login</Link>
           </div>
           <span>© {new Date().getFullYear()} SL Strength</span>
         </footer>
